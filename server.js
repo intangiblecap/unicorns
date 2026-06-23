@@ -120,7 +120,22 @@ function broadcast(room) {
   });
 }
 
+function genCode() { const chars='ABCDEFGHJKLMNPQRSTUVWXYZ'; let code=''; for(let i=0;i<6;i++) code+=chars[Math.floor(Math.random()*chars.length)]; return code; }
+
 io.on('connection', socket => {
+  socket.on('create', ({ name }) => {
+    let roomId;
+    do { roomId = genCode(); } while (rooms[roomId]);
+    rooms[roomId] = { id: roomId, players: [], deck: [], nursery: [], discard: [], currentPlayer: 0, phase: 'draw', log: [], started: false, winner: null, lastCard: null };
+    const player = { id: 0, socketId: socket.id, name, hand: [], stable: [], upgrades: [], downgrades: [] };
+    rooms[roomId].players.push(player);
+    socket.join(roomId);
+    socket.data = { roomId, playerId: 0 };
+    socket.emit('created', { roomId, playerId: 0 });
+    socket.emit('joined', { playerId: 0 });
+    io.to(roomId).emit('lobby', { players: rooms[roomId].players.map(p=>({id:p.id,name:p.name})), roomId, hostId: 0 });
+  });
+
   socket.on('join', ({ roomId, name }) => {
     if(!rooms[roomId]) {
       rooms[roomId] = { id: roomId, players: [], deck: [], nursery: [], discard: [], currentPlayer: 0, phase: 'draw', log: [], started: false, winner: null, lastCard: null };
