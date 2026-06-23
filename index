@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🦄 Unstable Unicorns</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0f0c29;color:#fff;font-family:sans-serif;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+
+/* SCREENS */
+#screen-setup,#screen-lobby,#screen-game,#screen-stable{display:none;flex-direction:column;height:100dvh;overflow-y:auto;padding:16px}
+#screen-setup.active,#screen-lobby.active,#screen-game.active,#screen-stable.active{display:flex}
+
+/* SETUP */
+.setup-title{font-size:28px;font-weight:900;color:#c4b5fd;text-align:center;margin:20px 0 4px}
+.setup-sub{color:#818cf8;text-align:center;font-size:13px;margin-bottom:24px}
+.setup-label{color:#a78bfa;font-size:13px;font-weight:700;margin-bottom:8px}
+.setup-input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;background:#1e1b4b;color:#fff;font-size:15px;margin-bottom:16px}
+.player-count-row{display:flex;gap:8px;margin-bottom:16px}
+.pc-btn{flex:1;padding:12px 0;border-radius:10px;border:2px solid #312e81;background:#1e1b4b;color:#818cf8;font-weight:700;font-size:16px;cursor:pointer}
+.pc-btn.active{border-color:#c4b5fd;background:#4c1d95;color:#fff}
+.nsfw-toggle{display:flex;align-items:center;justify-content:space-between;background:#1e1b4b;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #312e81}
+.toggle-label{color:#a78bfa;font-weight:700;font-size:14px}
+.toggle-sub{color:#6b7280;font-size:11px;margin-top:2px}
+.toggle-switch{width:48px;height:26px;background:#312e81;border-radius:20px;position:relative;cursor:pointer;transition:background 0.2s}
+.toggle-switch.on{background:#7c3aed}
+.toggle-switch::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left 0.2s}
+.toggle-switch.on::after{left:25px}
+.btn-main{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#4c1d95);color:#fff;font-weight:800;font-size:16px;cursor:pointer}
+.btn-main:disabled{opacity:0.4}
+
+/* LOBBY */
+.lobby-code{background:#1e1b4b;border:2px solid #c4b5fd;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px}
+.lobby-code-label{color:#818cf8;font-size:12px;margin-bottom:4px}
+.lobby-code-value{color:#c4b5fd;font-size:36px;font-weight:900;letter-spacing:4px}
+.lobby-players{background:#1e1b4b;border-radius:12px;padding:14px;margin-bottom:16px}
+.lobby-player{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #312e81}
+.lobby-player:last-child{border-bottom:none}
+
+/* GAME */
+#game-wrap{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+#game-top{padding:10px 12px 0;flex-shrink:0}
+#game-board{flex:1;overflow:hidden;padding:0 12px;display:flex;flex-direction:column;justify-content:center}
+#game-hand-wrap{flex-shrink:0;background:#0a0820;border-top:1px solid #312e81;padding:10px 12px}
+
+.players-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px}
+.player-chip{background:#1e1b4b;border:2px solid #312e81;border-radius:12px;padding:8px 12px;flex-shrink:0;text-align:center;cursor:pointer;transition:all 0.15s;min-width:80px}
+.player-chip.active-turn{border-color:#fcd34d;background:#2e1065}
+.player-chip.me{border-color:#c4b5fd}
+.player-chip-name{font-size:11px;font-weight:700;color:#e2e8f0;white-space:nowrap}
+.player-chip-unicorns{font-size:18px;margin:2px 0}
+.player-chip-count{font-size:10px;color:#818cf8}
+
+.last-card-area{background:#1e1b4b;border:2px solid #312e81;border-radius:16px;padding:16px;text-align:center;margin:8px 0;min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.last-card-label{font-size:11px;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+.last-card-display{padding:12px 20px;border-radius:12px;font-weight:700;font-size:14px}
+
+.phase-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.action-btn{padding:10px 16px;border-radius:10px;border:none;font-weight:700;cursor:pointer;font-size:13px}
+
+.hand-title{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.hand-cards{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.hand-card{flex-shrink:0;width:100px;border-radius:10px;padding:10px 8px;cursor:pointer;border:2px solid transparent;transition:all 0.15s;position:relative}
+.hand-card.selected{transform:translateY(-8px);box-shadow:0 8px 24px rgba(124,58,237,0.5)}
+.hand-card-type{font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:4px;opacity:0.8}
+.hand-card-name{font-size:12px;font-weight:700;color:#e2e8f0;line-height:1.3}
+.hand-card-desc{font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.3}
+
+.log-bar{font-size:11px;color:#818cf8;text-align:center;padding:4px 0;height:18px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+/* STABLE VIEW */
+.stable-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.back-btn{background:#1e1b4b;border:1px solid #312e81;color:#a78bfa;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
+.stable-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.stable-card{border-radius:10px;padding:10px;border:2px solid}
+
+/* TARGET OVERLAY */
+#target-overlay{display:none;position:fixed;inset:0;background:#000a;z-index:100;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+#target-overlay.active{display:flex}
+.target-title{color:#fcd34d;font-size:16px;font-weight:700;margin-bottom:16px;text-align:center}
+.target-btn{width:100%;max-width:300px;padding:14px;border-radius:12px;background:#fcd34d22;border:2px solid #fcd34d;color:#fcd34d;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px}
+.target-cancel{color:#6b7280;font-size:13px;margin-top:8px;cursor:pointer;text-decoration:underline}
+
+/* WIN */
+#screen-win{display:none;flex-direction:column;align-items:center;justify-content:center;height:100dvh;text-align:center;padding:20px}
+#screen-win.active{display:flex}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="screen-setup" class="active">
+  <div class="setup-title">🦄 Unstable Unicorns</div>
+  <div class="setup-sub">Jeu de cartes multijoueur</div>
+
+  <div class="setup-label">Ton prénom</div>
+  <input class="setup-input" id="nameInput" placeholder="Entre ton prénom" maxlength="15">
+
+  <div class="setup-label">Code de la salle</div>
+  <input class="setup-input" id="roomInput" placeholder="Ex: LICORNE123" maxlength="10" style="text-transform:uppercase">
+
+  <div class="nsfw-toggle">
+    <div>
+      <div class="toggle-label">🔞 Mode NSFW</div>
+      <div class="toggle-sub">Cartes adultes (bientôt disponible)</div>
+    </div>
+    <div class="toggle-switch" id="nsfwToggle" style="opacity:0.4;pointer-events:none"></div>
+  </div>
+
+  <button class="btn-main" onclick="joinRoom()">Rejoindre la salle</button>
+  <div id="setup-error" style="color:#fca5a5;text-align:center;margin-top:12px;font-size:13px"></div>
+</div>
+
+<!-- LOBBY -->
+<div id="screen-lobby">
+  <div style="text-align:center;margin:20px 0">
+    <div style="color:#818cf8;font-size:13px;margin-bottom:8px">Partage ce code avec tes amis</div>
+    <div class="lobby-code">
+      <div class="lobby-code-label">CODE DE LA SALLE</div>
+      <div class="lobby-code-value" id="lobbyCode"></div>
+    </div>
+  </div>
+  <div class="lobby-players" id="lobbyPlayers"></div>
+  <div id="startWrap" style="display:none">
+    <button class="btn-main" onclick="startGame()" id="startBtn">🦄 Lancer la partie</button>
+    <div style="color:#6b7280;font-size:12px;text-align:center;margin-top:8px">Tu es le créateur de la salle</div>
+  </div>
+  <div id="waitingMsg" style="color:#6b7280;font-size:13px;text-align:center;margin-top:12px"></div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game">
+  <div id="game-wrap">
+    <div id="game-top">
+      <div class="players-row" id="playersRow"></div>
+      <div class="log-bar" id="logBar"></div>
+    </div>
+    <div id="game-board">
+      <div class="last-card-area" id="lastCardArea">
+        <div class="last-card-label">Dernière carte jouée</div>
+        <div id="lastCardDisplay" style="color:#6b7280;font-size:13px">Aucune carte jouée</div>
+      </div>
+      <div class="phase-actions" id="phaseActions"></div>
+    </div>
+    <div id="game-hand-wrap">
+      <div class="hand-title">TA MAIN</div>
+      <div class="hand-cards" id="handCards"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STABLE VIEW -->
+<div id="screen-stable">
+  <div class="stable-header">
+    <button class="back-btn" onclick="closeStable()">← Retour</button>
+    <div style="font-weight:700;color:#c4b5fd;font-size:16px" id="stableTitle"></div>
+  </div>
+  <div class="stable-cards" id="stableCards"></div>
+</div>
+
+<!-- WIN -->
+<div id="screen-win">
+  <div style="font-size:80px;margin-bottom:16px">🏆</div>
+  <div style="font-size:28px;font-weight:900;color:#fcd34d;margin-bottom:8px" id="winnerName"></div>
+  <div style="color:#a78bfa;font-size:15px;margin-bottom:32px" id="winnerDesc"></div>
+  <button class="btn-main" onclick="location.reload()" style="max-width:200px">🦄 Rejouer</button>
+</div>
+
+<!-- TARGET OVERLAY -->
+<div id="target-overlay">
+  <div class="target-title" id="targetTitle">Choisir une cible</div>
+  <div id="targetButtons"></div>
+  <div class="target-cancel" onclick="cancelTarget()">Annuler</div>
+</div>
+
+<script>
+const socket = io();
+let state = null;
+let myId = null;
+let isHost = false;
+let selectedCard = null;
+
+const CARD_COLORS = {
+  basic:'#c4b5fd', magic:'#818cf8', baby:'#f9a8d4',
+  upgrade:'#86efac', downgrade:'#fca5a5', spell:'#fcd34d', instant:'#fb923c'
+};
+const CARD_EMOJI = {
+  basic:'🦄', magic:'✨', baby:'🐣', upgrade:'⬆️', downgrade:'⬇️', spell:'🔮', instant:'⚡'
+};
+const CARD_LABEL = {
+  basic:'Licorne Basique', magic:'Licorne Magique', baby:'Bébé Licorne',
+  upgrade:'Amélioration', downgrade:'Dégradation', spell:'Sort', instant:'Instant'
+};
+
+function show(id) {
+  ['screen-setup','screen-lobby','screen-game','screen-stable','screen-win'].forEach(s => {
+    document.getElementById(s).classList.remove('active');
+  });
+  document.getElementById(id).classList.add('active');
+}
+
+// ---- SETUP ----
+document.getElementById('roomInput').addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase();
+});
+
+function joinRoom() {
+  const name = document.getElementById('nameInput').value.trim();
+  const room = document.getElementById('roomInput').value.trim().toUpperCase();
+  if (!name) { document.getElementById('setup-error').textContent = 'Entre ton prénom !'; return; }
+  if (!room) { document.getElementById('setup-error').textContent = 'Entre un code de salle !'; return; }
+  socket.emit('join', { name, roomId: room });
+}
+
+socket.on('lobby', ({ players, roomId, hostId }) => {
+  document.getElementById('lobbyCode').textContent = roomId;
+  const me = players[players.length - 1];
+  if (myId === null) myId = me?.id;
+  isHost = myId === hostId;
+
+  document.getElementById('lobbyPlayers').innerHTML = players.map((p, i) => `
+    <div class="lobby-player">
+      <span style="font-size:18px">${i === 0 ? '👑' : '🦄'}</span>
+      <span style="font-weight:700;color:#e2e8f0">${p.name}</span>
+      ${p.id === myId ? '<span style="color:#818cf8;font-size:12px">(toi)</span>' : ''}
+    </div>
+  `).join('');
+
+  if (isHost) {
+    document.getElementById('startWrap').style.display = 'block';
+    document.getElementById('startBtn').disabled = players.length < 2;
+    document.getElementById('waitingMsg').textContent = players.length < 2 ? 'En attente d\'autres joueurs...' : '';
+  } else {
+    document.getElementById('waitingMsg').textContent = 'En attente que le créateur lance la partie...';
+  }
+  show('screen-lobby');
+});
+
+function startGame() { socket.emit('start'); }
+
+// ---- GAME STATE ----
+socket.on('state', (s) => {
+  state = s;
+  if (myId === null) myId = s.me.id;
+  if (s.winner !== null) {
+    const winner = s.players.find(p => p.id === s.winner);
+    document.getElementById('winnerName').textContent = `${winner.name} a gagné !`;
+    document.getElementById('winnerDesc').textContent = `${winner.stableCount} licornes dans l'écurie 🦄`;
+    show('screen-win');
+    return;
+  }
+  show('screen-game');
+  renderGame();
+});
+
+socket.on('joined', ({ playerId }) => { myId = playerId; });
+socket.on('error', msg => { document.getElementById('setup-error').textContent = msg; });
+
+function renderGame() {
+  if (!state) return;
+  const me = state.me;
+  const isMyTurn = state.players[state.currentPlayer]?.id === me.id;
+
+  // Players row
+  document.getElementById('playersRow').innerHTML = state.players.map(p => `
+    <div class="player-chip ${p.isCurrentPlayer ? 'active-turn' : ''} ${p.id === me.id ? 'me' : ''}" onclick="viewStable(${p.id})">
+      <div class="player-chip-name">${p.id === me.id ? '★ ' : ''}${p.name}</div>
+      <div class="player-chip-unicorns">${'🦄'.repeat(Math.min(p.stableCount, 7))}</div>
+      <div class="player-chip-count">${p.stableCount}/7 · ${p.handCount} cartes</div>
+      ${p.downgrades?.length ? `<div style="font-size:9px;color:#fca5a5">${p.downgrades.map(d=>d.name).join(', ')}</div>` : ''}
+    </div>
+  `).join('');
+
+  // Log
+  const lastLog = state.log[state.log.length - 1] || '';
+  document.getElementById('logBar').textContent = lastLog;
+
+  // Last card
+  const lastCard = state.lastCard;
+  const lastCardEl = document.getElementById('lastCardDisplay');
+  if (lastCard) {
+    const color = CARD_COLORS[lastCard.type] || '#fff';
+    document.getElementById('lastCardArea').style.borderColor = color + '88';
+    lastCardEl.innerHTML = `
+      <div class="last-card-display" style="background:${color}22;border:2px solid ${color};color:${color}">
+        ${CARD_EMOJI[lastCard.type]} ${lastCard.name}
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-top:8px">${lastCard.desc}</div>
+    `;
+  } else {
+    document.getElementById('lastCardArea').style.borderColor = '#312e81';
+    lastCardEl.innerHTML = '<div style="color:#6b7280;font-size:13px">Aucune carte jouée</div>';
+  }
+
+  // Phase actions
+  const actionsEl = document.getElementById('phaseActions');
+  if (isMyTurn) {
+    let html = '';
+    if (state.phase === 'draw') {
+      html = `<button class="action-btn" style="background:#818cf822;border:2px solid #818cf8;color:#818cf8" onclick="doAction('draw')">📥 Piocher une carte</button>`;
+    } else if (state.phase === 'action') {
+      html = `<button class="action-btn" style="background:#6b728022;border:2px solid #6b7280;color:#6b7280" onclick="doAction('skip')">⏭ Passer</button>`;
+      if (selectedCard) {
+        html += `<button class="action-btn" style="background:#16a34a22;border:2px solid #16a34a;color:#16a34a" onclick="confirmPlay()">✅ Jouer ${selectedCard.name}</button>`;
+        html += `<button class="action-btn" style="background:#dc262622;border:2px solid #dc2626;color:#dc2626" onclick="cancelCard()">❌</button>`;
+      }
+    } else if (state.phase === 'end') {
+      html = `<button class="action-btn" style="background:#f9a8d422;border:2px solid #f9a8d4;color:#f9a8d4" onclick="doAction('endturn')">➡️ Fin du tour</button>`;
+    }
+    actionsEl.innerHTML = html;
+  } else {
+    const current = state.players[state.currentPlayer];
+    actionsEl.innerHTML = `<div style="color:#6b7280;font-size:13px">Tour de ${current?.name}...</div>`;
+  }
+
+  // Hand
+  document.getElementById('handCards').innerHTML = me.hand.map(card => {
+    const color = CARD_COLORS[card.type] || '#fff';
+    return `
+      <div class="hand-card ${selectedCard?.id === card.id ? 'selected' : ''}"
+        style="background:${color}18;border-color:${selectedCard?.id === card.id ? color : color + '44'}"
+        onclick="selectCard(${card.id})">
+        <div class="hand-card-type" style="color:${color}">${CARD_EMOJI[card.type]} ${CARD_LABEL[card.type]}</div>
+        <div class="hand-card-name">${card.name}</div>
+        <div class="hand-card-desc">${card.desc}</div>
+      </div>
+    `;
+  }).join('') || '<div style="color:#6b7280;font-size:13px;padding:10px">Main vide</div>';
+}
+
+// ---- ACTIONS ----
+function selectCard(cardId) {
+  if (!state) return;
+  const isMyTurn = state.players[state.currentPlayer]?.id === state.me.id;
+  if (!isMyTurn || state.phase !== 'action') return;
+  const card = state.me.hand.find(c => c.id === cardId);
+  if (!card) return;
+  selectedCard = selectedCard?.id === card.id ? null : card;
+  renderGame();
+}
+
+function cancelCard() { selectedCard = null; renderGame(); }
+
+function confirmPlay() {
+  if (!selectedCard) return;
+  const needsTarget = ['downgrade'].includes(selectedCard.type) ||
+    (['spell'].includes(selectedCard.type) && !['draw2','draw3'].includes(selectedCard.effect));
+  if (needsTarget) {
+    showTargetOverlay();
+  } else {
+    socket.emit('action', { type: 'play', cardId: selectedCard.id, targetPlayerId: state.me.id });
+    selectedCard = null;
+  }
+}
+
+function showTargetOverlay() {
+  const opponents = state.players.filter(p => p.id !== state.me.id);
+  document.getElementById('targetTitle').textContent = `Cibler pour "${selectedCard.name}"`;
+  document.getElementById('targetButtons').innerHTML = opponents.map(p => `
+    <button class="target-btn" onclick="playOnTarget(${p.id})">
+      ${p.name} · ${p.stableCount} 🦄 · ${p.handCount} cartes
+    </button>
+  `).join('');
+  document.getElementById('target-overlay').classList.add('active');
+}
+
+function playOnTarget(targetId) {
+  document.getElementById('target-overlay').classList.remove('active');
+  socket.emit('action', { type: 'play', cardId: selectedCard.id, targetPlayerId: targetId });
+  selectedCard = null;
+}
+
+function cancelTarget() {
+  document.getElementById('target-overlay').classList.remove('active');
+}
+
+function doAction(type) {
+  socket.emit('action', { type });
+}
+
+// ---- STABLE VIEW ----
+function viewStable(playerId) {
+  if (!state) return;
+  const player = state.players.find(p => p.id === playerId);
+  if (!player) return;
+  document.getElementById('stableTitle').textContent = `Écurie de ${player.name}`;
+  const allCards = [...(player.stable || []), ...(player.upgrades || []), ...(player.downgrades || [])];
+  document.getElementById('stableCards').innerHTML = allCards.map(card => {
+    const color = CARD_COLORS[card.type] || '#fff';
+    return `
+      <div class="stable-card" style="background:${color}18;border-color:${color}88">
+        <div style="font-size:10px;color:${color};font-weight:700;margin-bottom:4px">${CARD_EMOJI[card.type]} ${CARD_LABEL[card.type]}</div>
+        <div style="font-weight:700;font-size:13px;color:#e2e8f0">${card.name}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">${card.desc}</div>
+      </div>
+    `;
+  }).join('') || '<div style="color:#6b7280">Écurie vide</div>';
+  show('screen-stable');
+}
+
+function closeStable() { show('screen-game'); }
+</script>
+</body>
+</html>
