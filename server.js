@@ -116,7 +116,18 @@ function initGame(room) {
   room.winner = null;
 }
 
-function applyCardEffect(room, card, actor, target) {
+function pickCard(pool, targetCardId) {
+  if(targetCardId != null) return pool.find(c=>c.id===targetCardId) || pool[0];
+  return pool[0];
+}
+
+function removeCard(player, cardId) {
+  if(player.stable.some(c=>c.id===cardId))       { player.stable   = player.stable.filter(c=>c.id!==cardId); return; }
+  if(player.upgrades.some(c=>c.id===cardId))      { player.upgrades = player.upgrades.filter(c=>c.id!==cardId); return; }
+  if(player.attacks.some(c=>c.id===cardId))       { player.attacks  = player.attacks.filter(c=>c.id!==cardId); }
+}
+
+function applyCardEffect(room, card, actor, target, targetCardId=null) {
   if(['basic','magic'].includes(card.type)) {
     if(actor.attacks.some(d=>d.effect==='no_unicorn')) {
       actor.hand.push(card);
@@ -129,13 +140,17 @@ function applyCardEffect(room, card, actor, target) {
     if(card.effect==='nursery'&&room.nursery.length>0){ actor.stable.push(room.nursery.shift()); room.log.push(`${actor.name} amène un Bébé Licorne depuis la Nurserie.`); }
     if(card.effect==='revive'&&room.discard.length>0){ actor.hand.push(room.discard.pop()); room.log.push(`${actor.name} récupère une carte de la défausse.`); }
     if(card.effect==='steal'){
-      const victims = room.players.filter(p=>p.id!==actor.id&&p.stable.filter(c=>['basic','magic'].includes(c.type)).length>0);
-      if(victims.length>0){ const v=victims[0]; const uni=v.stable.filter(c=>['basic','magic'].includes(c.type)); const stolen=uni[Math.floor(Math.random()*uni.length)]; v.stable=v.stable.filter(c=>c.id!==stolen.id); actor.stable.push(stolen); room.log.push(`${actor.name} vole ${stolen.name} à ${v.name}.`); }
+      const v = (target && target.id !== actor.id) ? target : null;
+      if(v) {
+        const uni=v.stable.filter(c=>['basic','magic'].includes(c.type));
+        if(uni.length>0){ const stolen=pickCard(uni,targetCardId); v.stable=v.stable.filter(c=>c.id!==stolen.id); actor.stable.push(stolen); room.log.push(`${actor.name} vole ${stolen.name} à ${v.name}.`); }
+      }
     }
     if(card.effect==='destroy_on_enter'){
       if(target && target.id !== actor.id){
-        const uni=target.stable.filter(c=>['basic','magic','baby'].includes(c.type));
-        if(uni.length>0){ const v=uni[0]; target.stable=target.stable.filter(c=>c.id!==v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); }
+        const pool=[...target.stable,...target.upgrades,...target.attacks].filter(c=>c.type!=='baby');
+        if(pool.length===0) pool.push(...target.stable.filter(c=>c.type==='baby'));
+        if(pool.length>0){ const v=pickCard(pool,targetCardId); removeCard(target,v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); }
       }
     }
   } else if(card.type==='upgrade') {
@@ -148,9 +163,9 @@ function applyCardEffect(room, card, actor, target) {
     room.discard.push(card);
     if(card.effect==='draw2'){ for(let i=0;i<2&&room.deck.length>0;i++) actor.hand.push(room.deck.shift()); room.log.push(`${actor.name} pioche 2 cartes.`); }
     if(card.effect==='draw3'){ for(let i=0;i<3&&room.deck.length>0;i++) actor.hand.push(room.deck.shift()); room.log.push(`${actor.name} pioche 3 cartes.`); }
-    if(card.effect==='destroy'){ const u=target.stable.filter(c=>['basic','magic'].includes(c.type)); if(u.length>0){ const v=u[0]; target.stable=target.stable.filter(c=>c.id!==v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); } }
-    if(card.effect==='steal_spell'){ const u=target.stable.filter(c=>['basic','magic'].includes(c.type)); if(u.length>0){ const v=u[0]; target.stable=target.stable.filter(c=>c.id!==v.id); actor.stable.push(v); room.log.push(`${actor.name} vole ${v.name} à ${target.name}.`); } }
-    if(card.effect==='return'){ const u=target.stable.filter(c=>['basic','magic','baby'].includes(c.type)); if(u.length>0){ const v=u[0]; target.stable=target.stable.filter(c=>c.id!==v.id); room.nursery.push(v); room.log.push(`${actor.name} renvoie ${v.name} à la Nurserie.`); } }
+    if(card.effect==='destroy'){ const pool=[...target.stable,...target.upgrades,...target.attacks].filter(c=>c.type!=='baby'); if(pool.length>0){ const v=pickCard(pool,targetCardId); removeCard(target,v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); } }
+    if(card.effect==='steal_spell'){ const u=target.stable.filter(c=>['basic','magic'].includes(c.type)); if(u.length>0){ const v=pickCard(u,targetCardId); target.stable=target.stable.filter(c=>c.id!==v.id); actor.stable.push(v); room.log.push(`${actor.name} vole ${v.name} à ${target.name}.`); } }
+    if(card.effect==='return'){ const u=target.stable.filter(c=>['basic','magic','baby'].includes(c.type)); if(u.length>0){ const v=pickCard(u,targetCardId); target.stable=target.stable.filter(c=>c.id!==v.id); room.nursery.push(v); room.log.push(`${actor.name} renvoie ${v.name} à la Nurserie.`); } }
     if(card.effect==='all_discard1'){ room.players.filter(p=>p.id!==actor.id).forEach(p=>{ if(p.hand.length>0){ const d=p.hand.splice(Math.floor(Math.random()*p.hand.length),1)[0]; room.discard.push(d); room.log.push(`${p.name} défausse ${d.name}.`); } }); }
   }
   return true;
@@ -227,7 +242,7 @@ io.on('connection', socket => {
     broadcast(room);
   });
 
-  socket.on('action', ({ type, cardId, targetPlayerId, discardIds }) => {
+  socket.on('action', ({ type, cardId, targetPlayerId, targetCardId, discardIds }) => {
     const { roomId, playerId } = socket.data || {};
     const room = rooms[roomId];
     if(!room || !room.started || room.winner !== null) return;
@@ -276,7 +291,7 @@ io.on('connection', socket => {
       const cardActor = room.players.find(p=>p.id===actorId);
       const cardTarget = room.players.find(p=>p.id===targetId) || cardActor;
       room.pendingCard = null;
-      const applied = applyCardEffect(room, card, cardActor, cardTarget);
+      const applied = applyCardEffect(room, card, cardActor, cardTarget, targetCardId);
       if(!applied) { room.phase = 'action'; broadcast(room); return; }
       const w = checkWin(room);
       if(w !== null){ room.winner=w; room.log.push(`🏆 ${room.players[w].name} a gagné !`); broadcast(room); return; }
@@ -339,16 +354,12 @@ io.on('connection', socket => {
       }
 
       if(upgradeCard.effect === 'draw_when_attacked') {
-        // Glitter Bomb : détruire 1 carte d'une autre écurie
         const t = room.players.find(p=>p.id===targetPlayerId);
         if(!t || t.id===cp.id) return;
         const allCards = [...t.stable, ...t.upgrades, ...t.attacks];
         if(allCards.length === 0) return;
-        // On détruit la première carte non-bébé
-        const toDestroy = allCards.find(c=>c.type!=='baby') || allCards[0];
-        if(t.stable.some(c=>c.id===toDestroy.id)) t.stable=t.stable.filter(c=>c.id!==toDestroy.id);
-        else if(t.upgrades.some(c=>c.id===toDestroy.id)) t.upgrades=t.upgrades.filter(c=>c.id!==toDestroy.id);
-        else if(t.attacks.some(c=>c.id===toDestroy.id)) t.attacks=t.attacks.filter(c=>c.id!==toDestroy.id);
+        const toDestroy = pickCard(allCards, targetCardId) || allCards[0];
+        removeCard(t, toDestroy.id);
         room.discard.push(toDestroy);
         room.usedBeginEffects.push(cardId);
         room.log.push(`${cp.name} active Glitter Bomb : détruit ${toDestroy.name} de ${t.name}.`);
@@ -417,9 +428,13 @@ io.on('connection', socket => {
 
   socket.on('disconnect', () => {
     const { roomId } = socket.data || {};
-    if(roomId && rooms[roomId]) {
-      rooms[roomId].players = rooms[roomId].players.filter(p=>p.socketId!==socket.id);
-      if(rooms[roomId].players.length===0) delete rooms[roomId];
+    if(!roomId || !rooms[roomId]) return;
+    const room = rooms[roomId];
+    room.players = room.players.filter(p=>p.socketId!==socket.id);
+    if(room.players.length===0) { delete rooms[roomId]; return; }
+    if(room.started) {
+      if(room.currentPlayer >= room.players.length) room.currentPlayer = 0;
+      broadcast(room);
     }
   });
 });

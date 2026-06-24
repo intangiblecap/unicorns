@@ -317,7 +317,7 @@ function renderActions(isMyTurn, phase, me){
               <button class="action-btn" style="border-color:#16a34a;color:#16a34a" ${sel<req?'disabled':''} onclick="confirmBeginEffect()">✅ confirmer</button>
               <button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="cancelBeginEffect()">❌ annuler</button>`;
       } else {
-        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">▶️ passer au tirage</button>`;
+        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">▶️ lancer la phase de pioche</button>`;
         const beginCards=(me.upgrades||[]).filter(c=>['begin_discard1_draw1','begin_discard2_steal_baby','draw_when_attacked'].includes(c.effect)&&!(state.usedBeginEffects||[]).includes(c.id));
         beginCards.forEach(c=>{
           if(c.effect==='draw_when_attacked'){
@@ -335,7 +335,7 @@ function renderActions(isMyTurn, phase, me){
             <button class="action-btn" style="border-color:#a78bfa;color:#a78bfa" onclick="doAction('redraw')">🔄 repiocher</button>`;
       if(selectedCard) html+=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="confirmPlay()">✅ jouer</button><button class="action-btn" style="border-color:#dc2626;color:#dc2626" onclick="cancelCard()">❌</button>`;
     } else if(phase==='reaction'){
-      html=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="doAction('resolve')">✅ résoudre →</button>`;
+      html=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="resolveOrPick()">✅ résoudre →</button>`;
     } else if(phase==='end'){
       html=`<button class="action-btn" style="border-color:#f9a8d4;color:#f9a8d4" onclick="doAction('endturn')">➡️ fin du tour</button>`;
     }
@@ -423,16 +423,61 @@ function handleCardClick(cardId){
   renderGame();
 }
 
-// Glitter Bomb: pick a target then fire immediately
+// Glitter Bomb: pick target player, then pick target card
+let _glitterBombCardId = null;
+let _glitterBombTargetPlayerId = null;
 function startGlitterBomb(upgradeCardId){
+  _glitterBombCardId = upgradeCardId;
   const opponents=state.players.filter(p=>p.id!==state.me.id);
-  document.getElementById('targetTitle').textContent='Glitter Bomb — cibler une écurie';
-  document.getElementById('targetButtons').innerHTML=opponents.map(p=>`<button class="target-btn" onclick="confirmGlitterBomb(${upgradeCardId},${p.id})">${p.name} · ${p.stableCount} 🦄</button>`).join('');
+  document.getElementById('targetTitle').textContent='Glitter Bomb — choisir un joueur';
+  document.getElementById('targetButtons').innerHTML=opponents.map(p=>`<button class="target-btn" onclick="glitterBombPickCard(${p.id})">${p.name} · ${p.stableCount} 🦄</button>`).join('');
   document.getElementById('target-overlay').classList.add('active');
 }
-function confirmGlitterBomb(upgradeCardId, targetPlayerId){
+function glitterBombPickCard(targetPlayerId){
+  _glitterBombTargetPlayerId = targetPlayerId;
+  const t = state.players.find(p=>p.id===targetPlayerId);
+  const allCards=[...(t.stable||[]),...(t.upgrades||[]),...(t.attacks||[])];
+  document.getElementById('targetTitle').textContent=`Glitter Bomb — détruire une carte de ${t.name}`;
+  document.getElementById('targetButtons').innerHTML=allCards.map(c=>{
+    const col=COLORS[c.type]||'#fff';
+    return `<button class="target-btn" style="border-color:${col};color:${col}" onclick="confirmGlitterBomb(${c.id})">${EMOJI[c.type]} ${c.name}</button>`;
+  }).join('') || '<div style="color:#6b7280">Écurie vide</div>';
+}
+function confirmGlitterBomb(targetCardId){
   document.getElementById('target-overlay').classList.remove('active');
-  socket.emit('action',{type:'use_begin',cardId:upgradeCardId,targetPlayerId,discardIds:[]});
+  socket.emit('action',{type:'use_begin',cardId:_glitterBombCardId,targetPlayerId:_glitterBombTargetPlayerId,targetCardId,discardIds:[]});
+}
+
+// Resolve: if card needs a specific card choice, show picker first
+function resolveOrPick(){
+  if(!state||!state.pendingCard) return;
+  const pc=state.pendingCard.card;
+  const needsPick = (pc.type==='spell'&&['destroy','steal_spell','return'].includes(pc.effect))
+    || (pc.type==='magic'&&['destroy_on_enter','steal'].includes(pc.effect));
+  if(!needsPick){ doAction('resolve'); return; }
+
+  const targetPlayer = state.players.find(p=>p.id===state.pendingCard.targetId);
+  if(!targetPlayer){ doAction('resolve'); return; }
+
+  let pool=[];
+  if(pc.effect==='destroy') pool=[...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks].filter(c=>c.type!=='baby');
+  else if(pc.effect==='steal_spell') pool=targetPlayer.stable.filter(c=>['basic','magic'].includes(c.type));
+  else if(pc.effect==='return') pool=targetPlayer.stable.filter(c=>['basic','magic','baby'].includes(c.type));
+  else if(pc.effect==='destroy_on_enter') pool=[...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks].filter(c=>c.type!=='baby');
+  else if(pc.effect==='steal') pool=targetPlayer.stable.filter(c=>['basic','magic'].includes(c.type));
+
+  if(pool.length===0){ doAction('resolve'); return; }
+
+  document.getElementById('targetTitle').textContent=`${pc.name} — choisir une carte de ${targetPlayer.name}`;
+  document.getElementById('targetButtons').innerHTML=pool.map(c=>{
+    const col=COLORS[c.type]||'#fff';
+    return `<button class="target-btn" style="border-color:${col};color:${col}" onclick="resolveWithCard(${c.id})">${EMOJI[c.type]} ${c.name}</button>`;
+  }).join('');
+  document.getElementById('target-overlay').classList.add('active');
+}
+function resolveWithCard(targetCardId){
+  document.getElementById('target-overlay').classList.remove('active');
+  socket.emit('action',{type:'resolve',targetCardId});
 }
 
 // Begin-of-turn effects
@@ -464,7 +509,9 @@ function confirmPlay(){
   // Amélioration → n'importe quel joueur (y compris soi-même)
   // Magie avec cible → adversaires
   // Licorne/Magie sans cible → soi-même automatiquement
-  const needsOpponentTarget = selectedCard.type==='attack' || (selectedCard.type==='spell'&&!['draw2','draw3','all_discard1'].includes(selectedCard.effect));
+  const needsOpponentTarget = selectedCard.type==='attack'
+    || (selectedCard.type==='spell'&&!['draw2','draw3','all_discard1'].includes(selectedCard.effect))
+    || (selectedCard.type==='magic'&&['destroy_on_enter','steal'].includes(selectedCard.effect));
   const needsAnyTarget = selectedCard.type==='upgrade';
   if(needsOpponentTarget){ showTargetOverlay(false); }
   else if(needsAnyTarget){ showTargetOverlay(true); }
