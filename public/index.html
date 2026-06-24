@@ -26,47 +26,58 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
 .players-list{width:100%;max-width:360px;background:#1e1b4b;border-radius:12px;padding:14px;margin-bottom:16px}
 .player-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #312e81}
 .player-row:last-child{border-bottom:none}
+/* GAME */
 #screen-game{padding:0;justify-content:flex-start}
-#game-top{padding:10px 12px 0;flex-shrink:0;width:100%}
-#game-board{flex:1;overflow:hidden;padding:8px 12px;display:flex;flex-direction:column;justify-content:center;width:100%}
-#game-hand-wrap{flex-shrink:0;background:#0a0820;border-top:1px solid #312e81;padding:10px 12px;width:100%}
+#game-top{padding:8px 12px 0;flex-shrink:0;width:100%}
+#game-board{flex:1;overflow:hidden;padding:6px 12px;display:flex;flex-direction:column;justify-content:center;width:100%}
+#game-hand-wrap{flex-shrink:0;background:#0a0820;border-top:1px solid #312e81;padding:8px 12px;width:100%}
 .players-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px}
 .player-chip{background:#1e1b4b;border:2px solid #312e81;border-radius:12px;padding:8px 10px;flex-shrink:0;text-align:center;cursor:pointer;min-width:80px}
 .player-chip.active-turn{border-color:#fcd34d;background:#2e1065}
 .player-chip.me{border-color:#c4b5fd}
 .player-chip-name{font-size:11px;font-weight:700;color:#e2e8f0;white-space:nowrap}
-.player-chip-uni{font-size:16px;margin:2px 0}
+.player-chip-uni{font-size:14px;margin:2px 0}
 .player-chip-info{font-size:10px;color:#818cf8}
-.last-card-area{background:#1e1b4b;border:2px solid #312e81;border-radius:14px;padding:14px;text-align:center;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:8px}
-.last-card-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
-.phase-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-.action-btn{padding:10px 16px;border-radius:10px;border:2px solid;font-weight:700;cursor:pointer;font-size:13px;background:transparent}
-.hand-title{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
-.hand-cards{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
-.hand-card{flex-shrink:0;width:105px;border-radius:10px;padding:10px 8px;cursor:pointer;border:2px solid transparent;transition:all 0.15s}
-.hand-card.selected{transform:translateY(-8px);box-shadow:0 8px 20px rgba(124,58,237,0.5)}
-.hand-card-type{font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:3px}
-.hand-card-name{font-size:12px;font-weight:700;color:#e2e8f0;line-height:1.3}
-.hand-card-desc{font-size:10px;color:#94a3b8;margin-top:3px;line-height:1.3}
-/* Log scrollable */
-.log-area{background:#1e1b4b22;border:1px solid #312e81;border-radius:8px;padding:6px 10px;margin-bottom:8px;max-height:56px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
-.log-line{font-size:11px;color:#818cf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-area{background:#1e1b4b22;border:1px solid #312e81;border-radius:8px;padding:5px 8px;margin-bottom:6px;max-height:48px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.log-line{font-size:10px;color:#818cf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .log-line:last-child{color:#c4b5fd}
+/* Pending card (reaction zone) */
+.pending-zone{background:#fcd34d18;border:2px solid #fcd34d;border-radius:14px;padding:12px;text-align:center;margin-bottom:6px}
+.pending-label{font-size:10px;color:#fcd34d;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700}
+/* Last card */
+.last-card-area{background:#1e1b4b;border:2px solid #312e81;border-radius:14px;padding:10px;text-align:center;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:6px}
+.last-card-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.phase-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;min-height:36px}
+.action-btn{padding:9px 14px;border-radius:10px;border:2px solid;font-weight:700;cursor:pointer;font-size:12px;background:transparent;transition:all 0.15s}
+.action-btn:hover{opacity:0.85}
+/* HUE button - always visible for opponents */
+.hue-btn{padding:10px 18px;border-radius:12px;border:3px solid #fb923c;font-weight:900;cursor:pointer;font-size:14px;background:#fb923c22;color:#fb923c;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #fb923c44}50%{box-shadow:0 0 0 8px #fb923c00}}
+.hand-title{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.hand-cards{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.hand-card{flex-shrink:0;width:100px;border-radius:10px;padding:8px 7px;cursor:pointer;border:2px solid transparent;transition:all 0.15s}
+.hand-card.selected{transform:translateY(-8px);box-shadow:0 8px 20px rgba(124,58,237,0.5)}
+.hand-card.discard-sel{transform:translateY(-6px);box-shadow:0 6px 16px rgba(252,163,17,0.5);border-color:#fca5a5 !important}
+.hand-card-type{font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:3px}
+.hand-card-name{font-size:11px;font-weight:700;color:#e2e8f0;line-height:1.3}
+.hand-card-desc{font-size:9px;color:#94a3b8;margin-top:3px;line-height:1.3}
 /* Stable */
 #screen-stable{padding:16px;justify-content:flex-start}
 .stable-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;width:100%}
 .back-btn{background:#1e1b4b;border:1px solid #312e81;color:#a78bfa;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
-.stable-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;width:100%}
+.stable-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;width:100%}
 .stable-card{border-radius:10px;padding:10px;border:2px solid}
 /* Target overlay */
 #target-overlay{display:none;position:fixed;inset:0;background:#000c;z-index:100;flex-direction:column;align-items:center;justify-content:center;padding:20px}
 #target-overlay.active{display:flex}
 .target-btn{width:100%;max-width:300px;padding:14px;border-radius:12px;background:#fcd34d22;border:2px solid #fcd34d;color:#fcd34d;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px}
-/* Instant notification */
-#instant-notif{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fb923c;color:#fff;font-weight:700;font-size:13px;border-radius:10px;padding:10px 20px;z-index:200;animation:slideDown 0.3s ease}
+/* Notif */
+#instant-notif{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fb923c;color:#fff;font-weight:700;font-size:13px;border-radius:10px;padding:10px 20px;z-index:200;animation:slideDown 0.3s ease;white-space:nowrap}
 @keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 /* Win */
 #screen-win{align-items:center;justify-content:center;text-align:center}
+/* Begin effect discard mode */
+.discard-mode-banner{background:#fca5a522;border:2px solid #fca5a5;border-radius:10px;padding:8px 12px;color:#fca5a5;font-size:12px;font-weight:700;text-align:center;margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -110,7 +121,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
   <div class="error" id="join-error"></div>
 </div>
 
-<!-- LOBBY (joueur non-host) -->
+<!-- LOBBY -->
 <div id="screen-lobby" class="screen">
   <div style="font-size:48px;margin-bottom:12px">⏳</div>
   <h1>En attente...</h1>
@@ -129,6 +140,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
     <div class="log-area" id="logArea"></div>
   </div>
   <div id="game-board">
+    <div id="pendingZone" style="display:none"></div>
     <div class="last-card-area" id="lastCardArea">
       <div class="last-card-label">Dernière carte jouée</div>
       <div id="lastCardDisplay" style="color:#6b7280;font-size:13px">Aucune carte jouée</div>
@@ -136,7 +148,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
     <div class="phase-actions" id="phaseActions"></div>
   </div>
   <div id="game-hand-wrap">
-    <div class="hand-title">TA MAIN · <span id="handCount">0</span> carte(s)</div>
+    <div class="hand-title">TA MAIN · <span id="handCount">0</span> carte(s) <span id="discardHint" style="color:#fca5a5;display:none"></span></div>
     <div class="hand-cards" id="handCards"></div>
   </div>
 </div>
@@ -165,7 +177,6 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
   <div style="color:#6b7280;font-size:13px;margin-top:12px;cursor:pointer;text-decoration:underline" onclick="cancelTarget()">Annuler</div>
 </div>
 
-<!-- INSTANT NOTIF -->
 <div id="instant-notif"></div>
 
 <script>
@@ -174,225 +185,290 @@ let state = null;
 let myId = null;
 let isHost = false;
 let selectedCard = null;
-let currentRoomId = null;
 let myName = '';
+
+// Begin-of-turn effect selection
+let beginEffectMode = null; // { upgradeCardId, requiredDiscards: 1|2 }
+let discardSelection = []; // card ids selected for begin-of-turn discard
 
 const COLORS = {basic:'#c4b5fd',magic:'#818cf8',baby:'#f9a8d4',upgrade:'#86efac',downgrade:'#fca5a5',spell:'#fcd34d',instant:'#fb923c'};
 const EMOJI = {basic:'🦄',magic:'✨',baby:'🐣',upgrade:'⬆️',downgrade:'⬇️',spell:'🔮',instant:'⚡'};
 const LABEL = {basic:'Licorne Basique',magic:'Licorne Magique',baby:'Bébé Licorne',upgrade:'Amélioration',downgrade:'Dégradation',spell:'Sort',instant:'Instant'};
 
 function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
-
 function getName() {
-  const n = document.getElementById('nameInput').value.trim();
-  if (!n) { document.getElementById('home-error').textContent = 'Entre ton prénom !'; return null; }
+  const n=document.getElementById('nameInput').value.trim();
+  if(!n){document.getElementById('home-error').textContent='Entre ton prénom !';return null;}
   return n;
 }
+function goCreate(){const name=getName();if(!name)return;myName=name;socket.emit('create',{name});}
+function goJoin(){const name=getName();if(!name)return;myName=name;show('screen-join');}
+function joinRoom(){const code=document.getElementById('codeInput').value.trim().toUpperCase();if(code.length!==6){document.getElementById('join-error').textContent='Le code doit faire 6 lettres !';return;}socket.emit('join',{name:myName,roomId:code});}
+function startGame(){socket.emit('start');}
+function doAction(type,extra={}){socket.emit('action',{type,...extra});}
+function cancelCard(){selectedCard=null;renderGame();}
+function cancelTarget(){document.getElementById('target-overlay').classList.remove('active');}
 
-function goCreate() {
-  const name = getName(); if (!name) return;
-  myName = name;
-  socket.emit('create', { name });
-}
-
-function goJoin() {
-  const name = getName(); if (!name) return;
-  myName = name;
-  show('screen-join');
-}
-
-function joinRoom() {
-  const code = document.getElementById('codeInput').value.trim().toUpperCase();
-  if (code.length !== 6) { document.getElementById('join-error').textContent = 'Le code doit faire 6 lettres !'; return; }
-  socket.emit('join', { name: myName, roomId: code });
-}
-
-function startGame() { socket.emit('start'); }
-
-socket.on('created', ({ roomId, playerId }) => {
-  myId = playerId;
-  isHost = true;
-  currentRoomId = roomId;
-  document.getElementById('generatedCode').textContent = roomId;
-  show('screen-create');
+socket.on('created',({roomId,playerId})=>{myId=playerId;isHost=true;document.getElementById('generatedCode').textContent=roomId;show('screen-create');});
+socket.on('lobby',({players,roomId})=>{
+  if(myId===null)myId=players[players.length-1]?.id;
+  const html=players.map((p,i)=>`<div class="player-row"><span style="font-size:18px">${i===0?'👑':'🦄'}</span><span style="font-weight:700;color:#e2e8f0">${p.name}</span>${p.id===myId?'<span style="color:#818cf8;font-size:12px">(toi)</span>':''}</div>`).join('');
+  if(isHost){document.getElementById('createPlayersList').innerHTML=html;document.getElementById('startBtn').disabled=players.length<2;show('screen-create');}
+  else{document.getElementById('lobbyCode').textContent=roomId;document.getElementById('lobbyPlayersList').innerHTML=html;show('screen-lobby');}
 });
-
-socket.on('lobby', ({ players, roomId }) => {
-  currentRoomId = roomId;
-  if (myId === null) myId = players[players.length - 1]?.id;
-
-  const listHTML = players.map((p, i) => `
-    <div class="player-row">
-      <span style="font-size:18px">${i === 0 ? '👑' : '🦄'}</span>
-      <span style="font-weight:700;color:#e2e8f0">${p.name}</span>
-      ${p.id === myId ? '<span style="color:#818cf8;font-size:12px">(toi)</span>' : ''}
-    </div>
-  `).join('');
-
-  if (isHost) {
-    document.getElementById('createPlayersList').innerHTML = listHTML;
-    document.getElementById('startBtn').disabled = players.length < 2;
-    show('screen-create');
-  } else {
-    document.getElementById('lobbyCode').textContent = roomId;
-    document.getElementById('lobbyPlayersList').innerHTML = listHTML;
-    show('screen-lobby');
+socket.on('joined',({playerId})=>{myId=playerId;});
+socket.on('error',msg=>{document.getElementById('join-error').textContent=msg;document.getElementById('home-error').textContent=msg;});
+socket.on('instant_played',({playerName,cardName})=>{
+  const el=document.getElementById('instant-notif');
+  el.textContent=`⚡ ${playerName} joue ${cardName} !`;
+  el.style.display='block';
+  setTimeout(()=>{el.style.display='none';},2500);
+});
+socket.on('state',(s)=>{
+  state=s;
+  if(s.winner!==null){
+    const w=s.players.find(p=>p.id===s.winner);
+    document.getElementById('winnerName').textContent=`${w.name} a gagné !`;
+    document.getElementById('winnerDesc').textContent=`${w.stableCount} licornes dans l'écurie 🦄`;
+    show('screen-win');return;
   }
+  // reset begin-effect mode if phase changed
+  if(s.phase!=='begin_of_turn'){beginEffectMode=null;discardSelection=[];}
+  show('screen-game');renderGame();
 });
 
-socket.on('joined', ({ playerId }) => { myId = playerId; });
+function cardHTML(card,extra='',opacityVal=1){
+  const col=COLORS[card.type]||'#fff';
+  return `<div class="hand-card ${extra}" style="background:${col}18;border-color:${col}44;opacity:${opacityVal}" onclick="handleCardClick(${card.id})">
+    <div class="hand-card-type" style="color:${col}">${EMOJI[card.type]} ${LABEL[card.type]}</div>
+    <div class="hand-card-name">${card.name}</div>
+    <div class="hand-card-desc">${card.desc}</div>
+  </div>`;
+}
 
-socket.on('error', msg => {
-  document.getElementById('join-error').textContent = msg;
-  document.getElementById('home-error').textContent = msg;
-});
+function renderGame(){
+  if(!state)return;
+  const me=state.me;
+  const isMyTurn=state.players[state.currentPlayer]?.id===me.id;
+  const phase=state.phase;
 
-socket.on('instant_played', ({ playerName, cardName }) => {
-  const el = document.getElementById('instant-notif');
-  el.textContent = `⚡ ${playerName} joue ${cardName} !`;
-  el.style.display = 'block';
-  setTimeout(() => { el.style.display = 'none'; }, 2500);
-});
-
-socket.on('state', (s) => {
-  state = s;
-  if (s.winner !== null) {
-    const w = s.players.find(p => p.id === s.winner);
-    document.getElementById('winnerName').textContent = `${w.name} a gagné !`;
-    document.getElementById('winnerDesc').textContent = `${w.stableCount} licornes dans l'écurie 🦄`;
-    show('screen-win'); return;
-  }
-  show('screen-game');
-  renderGame();
-});
-
-function renderGame() {
-  if (!state) return;
-  const me = state.me;
-  const isMyTurn = state.players[state.currentPlayer]?.id === me.id;
-
-  document.getElementById('playersRow').innerHTML = state.players.map(p => `
+  // Players chips
+  document.getElementById('playersRow').innerHTML=state.players.map(p=>`
     <div class="player-chip ${p.isCurrentPlayer?'active-turn':''} ${p.id===me.id?'me':''}" onclick="viewStable(${p.id})">
       <div class="player-chip-name">${p.id===me.id?'★ ':''}${p.name}</div>
       <div class="player-chip-uni">${'🦄'.repeat(Math.min(p.stableCount,6))}</div>
       <div class="player-chip-info">${p.stableCount}/7 · ${p.handCount} 🃏</div>
       ${p.downgrades?.length?`<div style="font-size:9px;color:#fca5a5">${p.downgrades.map(d=>d.name).join(', ')}</div>`:''}
-    </div>
-  `).join('');
+    </div>`).join('');
 
-  // Log scrollable
-  const logEl = document.getElementById('logArea');
-  logEl.innerHTML = state.log.map(l => `<div class="log-line">${l}</div>`).join('');
-  logEl.scrollTop = logEl.scrollHeight;
+  // Log
+  const logEl=document.getElementById('logArea');
+  logEl.innerHTML=state.log.map(l=>`<div class="log-line">${l}</div>`).join('');
+  logEl.scrollTop=logEl.scrollHeight;
+
+  // Pending zone (reaction)
+  const pz=document.getElementById('pendingZone');
+  if(state.pendingCard && phase==='reaction'){
+    const pc=state.pendingCard.card;
+    const col=COLORS[pc.type]||'#fff';
+    pz.style.display='block';
+    pz.innerHTML=`<div class="pending-zone">
+      <div class="pending-label">⚠️ Carte en jeu — HUE ! possible</div>
+      <div style="padding:6px 14px;border-radius:8px;background:${col}22;border:2px solid ${col};color:${col};font-weight:700;font-size:13px;display:inline-block">${EMOJI[pc.type]} ${pc.name}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:4px">${pc.desc}</div>
+    </div>`;
+  } else {
+    pz.style.display='none';
+    pz.innerHTML='';
+  }
 
   // Last card
-  const lc = state.lastCard;
-  const lcEl = document.getElementById('lastCardDisplay');
-  if (lc) {
-    const col = COLORS[lc.type]||'#fff';
-    document.getElementById('lastCardArea').style.borderColor = col+'88';
-    lcEl.innerHTML = `<div style="padding:8px 16px;border-radius:10px;background:${col}22;border:2px solid ${col};color:${col};font-weight:700;font-size:13px">${EMOJI[lc.type]} ${lc.name}</div><div style="font-size:11px;color:#6b7280;margin-top:4px">${lc.desc}</div>`;
+  const lc=state.lastCard;
+  const lcEl=document.getElementById('lastCardDisplay');
+  if(lc){
+    const col=COLORS[lc.type]||'#fff';
+    document.getElementById('lastCardArea').style.borderColor=col+'88';
+    lcEl.innerHTML=`<div style="padding:6px 14px;border-radius:8px;background:${col}22;border:2px solid ${col};color:${col};font-weight:700;font-size:12px;display:inline-block">${EMOJI[lc.type]} ${lc.name}</div><div style="font-size:10px;color:#6b7280;margin-top:3px">${lc.desc}</div>`;
   } else {
-    document.getElementById('lastCardArea').style.borderColor = '#312e81';
-    lcEl.innerHTML = '<div style="color:#6b7280;font-size:13px">Aucune carte jouée</div>';
+    document.getElementById('lastCardArea').style.borderColor='#312e81';
+    lcEl.innerHTML='<div style="color:#6b7280;font-size:13px">Aucune carte jouée</div>';
   }
 
   // Actions
-  const actEl = document.getElementById('phaseActions');
-  const canPlayInstant = me.hand && me.hand.some(c => c.type === 'instant');
-
-  if (isMyTurn) {
-    let html = '';
-    if (state.phase==='draw') html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('draw')">📥 Piocher</button>`;
-    else if (state.phase==='action') {
-      html=`<button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="doAction('skip')">⏭ Passer</button>`;
-      if (selectedCard) html+=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="confirmPlay()">✅ Jouer</button><button class="action-btn" style="border-color:#dc2626;color:#dc2626" onclick="cancelCard()">❌</button>`;
-    }
-    else if (state.phase==='end') html=`<button class="action-btn" style="border-color:#f9a8d4;color:#f9a8d4" onclick="doAction('endturn')">➡️ Fin du tour</button>`;
-    actEl.innerHTML = html;
-  } else {
-    let html = `<div style="color:#6b7280;font-size:13px">Tour de ${state.players[state.currentPlayer]?.name}...</div>`;
-    if (canPlayInstant) {
-      html += `<button class="action-btn" style="border-color:#fb923c;color:#fb923c" onclick="playInstant()">⚡ Jouer un Instant</button>`;
-    }
-    actEl.innerHTML = html;
-  }
+  renderActions(isMyTurn, phase, me);
 
   // Hand
-  document.getElementById('handCount').textContent = me.hand?.length || 0;
-  document.getElementById('handCards').innerHTML = (me.hand || []).map(card => {
-    const col = COLORS[card.type]||'#fff';
-    const isSelectable = isMyTurn && state.phase==='action' || card.type==='instant';
-    return `<div class="hand-card ${selectedCard?.id===card.id?'selected':''}" style="background:${col}18;border-color:${selectedCard?.id===card.id?col:col+'44'};opacity:${isSelectable?1:0.6}" onclick="selectCard(${card.id})">
+  renderHand(isMyTurn, phase, me);
+}
+
+function renderActions(isMyTurn, phase, me){
+  const actEl=document.getElementById('phaseActions');
+  let html='';
+
+  if(isMyTurn){
+    if(phase==='begin_of_turn'){
+      if(beginEffectMode){
+        const req=beginEffectMode.requiredDiscards;
+        const sel=discardSelection.length;
+        html=`<div style="color:#fca5a5;font-size:12px">Sélectionne ${req} carte(s) à défausser (${sel}/${req})</div>
+              <button class="action-btn" style="border-color:#16a34a;color:#16a34a" ${sel<req?'disabled':''} onclick="confirmBeginEffect()">✅ Confirmer</button>
+              <button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="cancelBeginEffect()">❌ Annuler</button>`;
+      } else {
+        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">▶️ Passer au tirage</button>`;
+        const beginCards=(me.upgrades||[]).filter(c=>['begin_discard1_draw1','begin_discard2_steal_baby'].includes(c.effect)&&!(state.usedBeginEffects||[]).includes(c.id));
+        beginCards.forEach(c=>{
+          const req=c.effect==='begin_discard1_draw1'?1:2;
+          html+=`<button class="action-btn" style="border-color:#86efac;color:#86efac" onclick="startBeginEffect(${c.id},${req})">⬆️ ${c.name}</button>`;
+        });
+      }
+    } else if(phase==='draw'){
+      html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('draw')">📥 Piocher</button>`;
+    } else if(phase==='action'){
+      html=`<button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="doAction('skip')">⏭ Passer</button>
+            <button class="action-btn" style="border-color:#a78bfa;color:#a78bfa" onclick="doAction('redraw')">🔄 Repiocher</button>`;
+      if(selectedCard) html+=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="confirmPlay()">✅ Jouer</button><button class="action-btn" style="border-color:#dc2626;color:#dc2626" onclick="cancelCard()">❌</button>`;
+    } else if(phase==='reaction'){
+      html=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="doAction('resolve')">✅ Résoudre →</button>`;
+    } else if(phase==='end'){
+      html=`<button class="action-btn" style="border-color:#f9a8d4;color:#f9a8d4" onclick="doAction('endturn')">➡️ Fin du tour</button>`;
+    }
+  } else {
+    const cpName=state.players[state.currentPlayer]?.name;
+    html=`<div style="color:#6b7280;font-size:12px">Tour de ${cpName}...</div>`;
+    // HUE ! button during reaction if player has Non !!
+    const hasNope=(me.hand||[]).some(c=>c.effect==='nope');
+    if(phase==='reaction' && hasNope){
+      html+=`<button class="hue-btn" onclick="playHue()">🙅 HUE !</button>`;
+    }
+  }
+
+  actEl.innerHTML=html;
+}
+
+function renderHand(isMyTurn, phase, me){
+  const hint=document.getElementById('discardHint');
+  if(beginEffectMode){
+    const req=beginEffectMode.requiredDiscards;
+    hint.textContent=`— sélectionne ${req} carte(s) à défausser`;
+    hint.style.display='inline';
+  } else {
+    hint.style.display='none';
+  }
+  document.getElementById('handCount').textContent=me.hand?.length||0;
+  document.getElementById('handCards').innerHTML=(me.hand||[]).map(card=>{
+    const col=COLORS[card.type]||'#fff';
+    const isSelected=selectedCard?.id===card.id;
+    const isDiscardSel=discardSelection.includes(card.id);
+
+    let extraClass='';
+    let borderCol=col+'44';
+    let opacity=0.65;
+
+    if(beginEffectMode){
+      // In discard selection mode
+      if(isDiscardSel){extraClass='discard-sel';borderCol='#fca5a5';opacity=1;}
+      else{opacity=0.75;}
+    } else {
+      const canPlay=(isMyTurn&&phase==='action')||card.type==='instant';
+      if(isSelected){extraClass='selected';borderCol=col;opacity=1;}
+      else if(canPlay){opacity=1;borderCol=col+'66';}
+    }
+
+    return `<div class="hand-card ${extraClass}" style="background:${col}18;border-color:${borderCol};opacity:${opacity}" onclick="handleCardClick(${card.id})">
       <div class="hand-card-type" style="color:${col}">${EMOJI[card.type]} ${LABEL[card.type]}</div>
       <div class="hand-card-name">${card.name}</div>
       <div class="hand-card-desc">${card.desc}</div>
     </div>`;
-  }).join('') || '<div style="color:#6b7280;font-size:13px;padding:8px">Main vide</div>';
+  }).join('')||'<div style="color:#6b7280;font-size:13px;padding:8px">Main vide</div>';
 }
 
-function selectCard(cardId) {
-  if (!state) return;
-  const isMyTurn = state.players[state.currentPlayer]?.id === state.me.id;
-  const card = state.me.hand?.find(c=>c.id===cardId);
-  if (!card) return;
-  if (!isMyTurn && card.type !== 'instant') return;
-  if (isMyTurn && state.phase !== 'action') return;
-  selectedCard = selectedCard?.id===card.id ? null : card;
+function handleCardClick(cardId){
+  if(!state) return;
+  const me=state.me;
+  const card=me.hand?.find(c=>c.id===cardId);
+  if(!card) return;
+
+  // Begin effect discard selection
+  if(beginEffectMode){
+    if(discardSelection.includes(cardId)){
+      discardSelection=discardSelection.filter(id=>id!==cardId);
+    } else if(discardSelection.length<beginEffectMode.requiredDiscards){
+      discardSelection.push(cardId);
+    }
+    renderGame(); return;
+  }
+
+  const isMyTurn=state.players[state.currentPlayer]?.id===me.id;
+  const phase=state.phase;
+
+  // Play Non !! out of turn (during reaction or any phase)
+  if(!isMyTurn && card.type==='instant'){
+    if(card.effect==='nope' && phase==='reaction'){
+      // will be handled by HUE button, but also clicking the card works
+      socket.emit('action',{type:'nope',cardId:card.id}); return;
+    }
+    socket.emit('action',{type:'play_instant',cardId:card.id}); return;
+  }
+
+  if(!isMyTurn) return;
+  if(phase!=='action') return;
+
+  selectedCard=selectedCard?.id===card.id?null:card;
   renderGame();
 }
 
-function cancelCard() { selectedCard=null; renderGame(); }
-
-function confirmPlay() {
-  if (!selectedCard) return;
-  const needsTarget = selectedCard.type==='downgrade' || (selectedCard.type==='spell' && !['draw2','draw3'].includes(selectedCard.effect));
-  if (needsTarget) { showTargetOverlay(); }
-  else { socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:state.me.id}); selectedCard=null; }
+// Begin-of-turn effects
+function startBeginEffect(upgradeCardId, requiredDiscards){
+  beginEffectMode={upgradeCardId,requiredDiscards};
+  discardSelection=[];
+  renderGame();
+}
+function cancelBeginEffect(){beginEffectMode=null;discardSelection=[];renderGame();}
+function confirmBeginEffect(){
+  if(!beginEffectMode||discardSelection.length<beginEffectMode.requiredDiscards) return;
+  socket.emit('action',{type:'use_begin',cardId:beginEffectMode.upgradeCardId,discardIds:discardSelection});
+  beginEffectMode=null;discardSelection=[];
 }
 
-function playInstant() {
-  const instants = state.me.hand?.filter(c=>c.type==='instant');
-  if (!instants || instants.length === 0) return;
-  if (instants.length === 1) {
-    socket.emit('action',{type:'play_instant',cardId:instants[0].id});
-    selectedCard = null;
-  } else {
-    selectedCard = instants[0];
-    renderGame();
-  }
+// HUE ! button
+function playHue(){
+  if(!state) return;
+  const me=state.me;
+  const nopeCard=(me.hand||[]).find(c=>c.effect==='nope');
+  if(!nopeCard) return;
+  socket.emit('action',{type:'nope',cardId:nopeCard.id});
 }
 
-function showTargetOverlay() {
-  const opponents = state.players.filter(p=>p.id!==state.me.id);
-  document.getElementById('targetTitle').textContent = `Cibler pour "${selectedCard.name}"`;
-  document.getElementById('targetButtons').innerHTML = opponents.map(p=>`<button class="target-btn" onclick="playOnTarget(${p.id})">${p.name} · ${p.stableCount} 🦄</button>`).join('');
+// Play a card
+function confirmPlay(){
+  if(!selectedCard) return;
+  const needsTarget=selectedCard.type==='downgrade'||(selectedCard.type==='spell'&&!['draw2','draw3'].includes(selectedCard.effect));
+  if(needsTarget){showTargetOverlay();}
+  else{socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:state.me.id});selectedCard=null;}
+}
+
+function showTargetOverlay(){
+  const opponents=state.players.filter(p=>p.id!==state.me.id);
+  document.getElementById('targetTitle').textContent=`Cibler pour "${selectedCard.name}"`;
+  document.getElementById('targetButtons').innerHTML=opponents.map(p=>`<button class="target-btn" onclick="playOnTarget(${p.id})">${p.name} · ${p.stableCount} 🦄</button>`).join('');
   document.getElementById('target-overlay').classList.add('active');
 }
-
-function playOnTarget(tid) {
+function playOnTarget(tid){
   document.getElementById('target-overlay').classList.remove('active');
-  if (selectedCard.type === 'instant') {
-    socket.emit('action',{type:'play_instant',cardId:selectedCard.id});
-  } else {
-    socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:tid});
-  }
+  socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:tid});
   selectedCard=null;
 }
 
-function cancelTarget() { document.getElementById('target-overlay').classList.remove('active'); }
-function doAction(type) { socket.emit('action',{type}); }
-
-function viewStable(playerId) {
-  if (!state) return;
-  const p = state.players.find(pl=>pl.id===playerId);
-  if (!p) return;
-  document.getElementById('stableTitle').textContent = `Écurie de ${p.name}`;
-  const all = [...(p.stable||[]), ...(p.upgrades||[]), ...(p.downgrades||[])];
-  document.getElementById('stableCards').innerHTML = all.map(card=>{
+function viewStable(playerId){
+  if(!state)return;
+  const p=state.players.find(pl=>pl.id===playerId);
+  if(!p)return;
+  document.getElementById('stableTitle').textContent=`Écurie de ${p.name}`;
+  const all=[...(p.stable||[]),...(p.upgrades||[]),...(p.downgrades||[])];
+  document.getElementById('stableCards').innerHTML=all.map(card=>{
     const col=COLORS[card.type]||'#fff';
     return `<div class="stable-card" style="background:${col}18;border-color:${col}88">
       <div style="font-size:10px;color:${col};font-weight:700;margin-bottom:4px">${EMOJI[card.type]} ${LABEL[card.type]}</div>
