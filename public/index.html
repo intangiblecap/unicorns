@@ -186,10 +186,11 @@ let myId = null;
 let isHost = false;
 let selectedCard = null;
 let myName = '';
-
-// Begin-of-turn effect selection
-let beginEffectMode = null; // { upgradeCardId, requiredDiscards: 1|2 }
-let discardSelection = []; // card ids selected for begin-of-turn discard
+let beginEffectMode = null;
+let discardSelection = [];
+// Pour la sélection de cible en 2 étapes (joueur puis carte)
+let _pendingPlayCardId = null;
+let _pendingPlayTargetId = null;
 
 const COLORS = {basic:'#c4b5fd',magic:'#818cf8',baby:'#f9a8d4',upgrade:'#86efac',attack:'#fca5a5',spell:'#fcd34d',instant:'#fb923c'};
 const EMOJI = {basic:'🦄',magic:'✨',baby:'🐣',upgrade:'⬆️',attack:'⬇️',spell:'🔮',instant:'⚡'};
@@ -221,12 +222,6 @@ socket.on('lobby',({players,roomId})=>{
 });
 socket.on('joined',({playerId})=>{myId=playerId;});
 socket.on('error',msg=>{document.getElementById('join-error').textContent=msg;document.getElementById('home-error').textContent=msg;});
-socket.on('instant_played',({playerName,cardName})=>{
-  const el=document.getElementById('instant-notif');
-  el.textContent=`⚡ ${playerName} joue ${cardName} !`;
-  el.style.display='block';
-  setTimeout(()=>{el.style.display='none';},2500);
-});
 socket.on('state',(s)=>{
   state=s;
   if(s.winner!==null){
@@ -235,7 +230,6 @@ socket.on('state',(s)=>{
     document.getElementById('winnerDesc').textContent=`${w.stableCount} licornes dans l'écurie 🦄`;
     show('screen-win');return;
   }
-  // reset begin-effect mode if phase changed
   if(s.phase!=='begin_of_turn'){beginEffectMode=null;discardSelection=[];}
   show('screen-game');renderGame();
 });
@@ -269,15 +263,16 @@ function renderGame(){
   logEl.innerHTML=state.log.map(l=>`<div class="log-line">${l}</div>`).join('');
   logEl.scrollTop=logEl.scrollHeight;
 
-  // Pending zone (reaction)
+  // Pending zone (visible pendant begin_of_turn du joueur suivant)
   const pz=document.getElementById('pendingZone');
-  if(state.pendingCard && phase==='reaction'){
+  if(state.pendingCard && phase==='begin_of_turn'){
     const pc=state.pendingCard.card;
     const nChain=(state.pendingCard.nopeChain||[]).length;
     const col=COLORS[pc.type]||'#fff';
+    const hasNope=(me.hand||[]).some(c=>c.effect==='nope');
     pz.style.display='block';
     pz.innerHTML=`<div class="pending-zone">
-      <div class="pending-label">⚠️ Carte en jeu${nChain>0?` · 🙅 ${nChain} Huuue !! (${nChain%2===1?'annulée':'en jeu'})`:' — Huuue !! possible'}</div>
+      <div class="pending-label">⏳ Carte en attente${nChain>0?` · 🙅 ${nChain} Huuue !! (carte ${nChain%2===1?'annulée':'en jeu'})`:hasNope?' — clique Huuue !! pour contrer':'— se résout à la prochaine pioche'}</div>
       <div style="padding:6px 14px;border-radius:8px;background:${col}22;border:2px solid ${col};color:${col};font-weight:700;font-size:13px;display:inline-block">${EMOJI[pc.type]} ${pc.name}</div>
       <div style="font-size:10px;color:#6b7280;margin-top:4px">${pc.desc}</div>
     </div>`;
@@ -319,7 +314,8 @@ function renderActions(isMyTurn, phase, me){
               <button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="cancelBeginEffect()">❌ annuler</button>`;
       } else {
         const hasSkipDraw=(me.attacks||[]).some(a=>a.effect==='skip_draw');
-        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">${hasSkipDraw?'⚠️ passer (mauvais sort actif — pas de pioche)':'▶️ lancer la phase de pioche'}</button>`;
+        const hasPending=!!state.pendingCard;
+        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('draw')">${hasSkipDraw?'⚠️ passer (mauvais sort — pas de pioche)':hasPending?'📥 piocher (résout la carte en attente)':'📥 piocher'}</button>`;
         const beginCards=(me.upgrades||[]).filter(c=>['begin_discard1_draw1','begin_discard2_steal_baby','draw_when_attacked'].includes(c.effect)&&!(state.usedBeginEffects||[]).includes(c.id));
         beginCards.forEach(c=>{
           if(c.effect==='draw_when_attacked'){
@@ -330,26 +326,16 @@ function renderActions(isMyTurn, phase, me){
           }
         });
       }
-    } else if(phase==='draw'){
-      html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('draw')">📥 piocher</button>`;
     } else if(phase==='action'){
       html=`<button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="doAction('skip')">⏭ passer</button>
             <button class="action-btn" style="border-color:#a78bfa;color:#a78bfa" onclick="doAction('redraw')">🔄 repiocher</button>`;
       if(selectedCard) html+=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="confirmPlay()">✅ jouer</button><button class="action-btn" style="border-color:#dc2626;color:#dc2626" onclick="cancelCard()">❌</button>`;
-    } else if(phase==='reaction'){
-      html=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="resolveOrPick()">✅ résoudre →</button>`;
-      const hasNopeMine=(me.hand||[]).some(c=>c.effect==='nope');
-      if(hasNopeMine) html+=`<button class="hue-btn" onclick="playHue()">🙅 huuue !!</button>`;
     } else if(phase==='end'){
       html=`<button class="action-btn" style="border-color:#f9a8d4;color:#f9a8d4" onclick="doAction('endturn')">➡️ fin du tour</button>`;
     }
   } else {
     const cpName=state.players[state.currentPlayer]?.name;
     html=`<div style="color:#6b7280;font-size:12px">tour de ${cpName}...</div>`;
-    const hasNope=(me.hand||[]).some(c=>c.effect==='nope');
-    if(phase==='reaction' && hasNope){
-      html+=`<button class="hue-btn" onclick="playHue()">🙅 huuue !!</button>`;
-    }
   }
 
 
@@ -380,8 +366,11 @@ function renderHand(isMyTurn, phase, me){
       if(isDiscardSel){extraClass='discard-sel';borderCol='#fca5a5';opacity=1;}
       else{opacity=0.75;}
     } else {
-      const canPlay=(isMyTurn&&phase==='action')||card.type==='instant';
+      // Huuue !! cliquable si pendingCard existe pendant begin_of_turn (n'importe qui)
+      const canNope = card.effect==='nope' && !!state.pendingCard && phase==='begin_of_turn';
+      const canPlay = (isMyTurn&&phase==='action') || canNope;
       if(isSelected){extraClass='selected';borderCol=col;opacity=1;}
+      else if(canNope){extraClass='';borderCol='#fb923c';opacity=1;}
       else if(canPlay){opacity=1;borderCol=col+'66';}
     }
 
@@ -412,13 +401,9 @@ function handleCardClick(cardId){
   const isMyTurn=state.players[state.currentPlayer]?.id===me.id;
   const phase=state.phase;
 
-  // Play Non !! out of turn (during reaction or any phase)
-  if(!isMyTurn && card.type==='instant'){
-    if(card.effect==='nope' && phase==='reaction'){
-      // will be handled by HUE button, but also clicking the card works
-      socket.emit('action',{type:'nope',cardId:card.id}); return;
-    }
-    socket.emit('action',{type:'play_instant',cardId:card.id}); return;
+  // Huuue !! — jouable par n'importe qui pendant begin_of_turn si pendingCard
+  if(card.effect==='nope' && state.pendingCard && phase==='begin_of_turn'){
+    socket.emit('action',{type:'nope',cardId:card.id}); return;
   }
 
   if(!isMyTurn) return;
@@ -453,38 +438,6 @@ function confirmGlitterBomb(targetCardId){
   socket.emit('action',{type:'use_begin',cardId:_glitterBombCardId,targetPlayerId:_glitterBombTargetPlayerId,targetCardId,discardIds:[]});
 }
 
-// Resolve: if card needs a specific card choice, show picker first
-function resolveOrPick(){
-  if(!state||!state.pendingCard) return;
-  const pc=state.pendingCard.card;
-  const needsPick = (pc.type==='spell'&&['destroy','steal_spell','return'].includes(pc.effect))
-    || (pc.type==='magic'&&['destroy_on_enter','steal'].includes(pc.effect));
-  if(!needsPick){ doAction('resolve'); return; }
-
-  const targetPlayer = state.players.find(p=>p.id===state.pendingCard.targetId);
-  if(!targetPlayer){ doAction('resolve'); return; }
-
-  let pool=[];
-  if(pc.effect==='destroy') pool=[...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks];
-  else if(pc.effect==='steal_spell') pool=targetPlayer.stable.filter(c=>['baby','basic','magic'].includes(c.type));
-  else if(pc.effect==='return') pool=targetPlayer.stable.filter(c=>['basic','magic','baby'].includes(c.type));
-  else if(pc.effect==='destroy_on_enter') pool=[...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks];
-  else if(pc.effect==='steal') pool=targetPlayer.stable.filter(c=>['basic','magic'].includes(c.type));
-
-  if(pool.length===0){ doAction('resolve'); return; }
-
-  document.getElementById('targetTitle').textContent=`${pc.name} — choisir une carte de ${targetPlayer.name}`;
-  document.getElementById('targetButtons').innerHTML=pool.map(c=>{
-    const col=COLORS[c.type]||'#fff';
-    return `<button class="target-btn" style="border-color:${col};color:${col}" onclick="resolveWithCard(${c.id})">${EMOJI[c.type]} ${c.name}</button>`;
-  }).join('');
-  document.getElementById('target-overlay').classList.add('active');
-}
-function resolveWithCard(targetCardId){
-  document.getElementById('target-overlay').classList.remove('active');
-  socket.emit('action',{type:'resolve',targetCardId});
-}
-
 // Begin-of-turn effects
 function startBeginEffect(upgradeCardId, requiredDiscards){
   beginEffectMode={upgradeCardId,requiredDiscards};
@@ -498,22 +451,9 @@ function confirmBeginEffect(){
   beginEffectMode=null;discardSelection=[];
 }
 
-// HUE ! button
-function playHue(){
-  if(!state) return;
-  const me=state.me;
-  const nopeCard=(me.hand||[]).find(c=>c.effect==='nope');
-  if(!nopeCard) return;
-  socket.emit('action',{type:'nope',cardId:nopeCard.id});
-}
-
-// Play a card
+// Jouer une carte
 function confirmPlay(){
   if(!selectedCard) return;
-  // Attaque → adversaires seulement
-  // Amélioration → n'importe quel joueur (y compris soi-même)
-  // Magie avec cible → adversaires
-  // Licorne/Magie sans cible → soi-même automatiquement
   const needsOpponentTarget = selectedCard.type==='attack'
     || (selectedCard.type==='spell'&&!['draw2','draw3','all_discard1'].includes(selectedCard.effect))
     || (selectedCard.type==='magic'&&['destroy_on_enter','steal'].includes(selectedCard.effect));
@@ -523,16 +463,49 @@ function confirmPlay(){
   else{ socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:state.me.id}); selectedCard=null; }
 }
 
+// Effets nécessitant le choix d'une carte dans l'écurie cible
+function cardPickPool(card, targetPlayer){
+  if(card.effect==='destroy') return [...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks];
+  if(card.effect==='steal_spell') return targetPlayer.stable.filter(c=>['baby','basic','magic'].includes(c.type));
+  if(card.effect==='return') return targetPlayer.stable.filter(c=>['basic','magic','baby'].includes(c.type));
+  if(card.effect==='destroy_on_enter') return [...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks];
+  if(card.effect==='steal') return targetPlayer.stable.filter(c=>['basic','magic'].includes(c.type));
+  return [];
+}
+const CARD_PICK_EFFECTS = ['destroy','steal_spell','return','destroy_on_enter','steal'];
+
 function showTargetOverlay(includeMe){
   const players = includeMe ? state.players : state.players.filter(p=>p.id!==state.me.id);
   document.getElementById('targetTitle').textContent=`Cibler pour "${selectedCard.name}"`;
-  document.getElementById('targetButtons').innerHTML=players.map(p=>`<button class="target-btn" onclick="playOnTarget(${p.id})">${p.id===state.me.id?'★ ':''} ${p.name} · ${p.stableCount} 🦄</button>`).join('');
+  document.getElementById('targetButtons').innerHTML=players.map(p=>`<button class="target-btn" onclick="onTargetSelected(${p.id})">${p.id===state.me.id?'★ ':''} ${p.name} · ${p.stableCount} 🦄</button>`).join('');
   document.getElementById('target-overlay').classList.add('active');
 }
-function playOnTarget(tid){
+
+function onTargetSelected(tid){
+  if(!selectedCard) return;
+  // Si la carte nécessite de choisir une carte cible, on affiche un second écran
+  if(CARD_PICK_EFFECTS.includes(selectedCard.effect)){
+    const t = state.players.find(p=>p.id===tid);
+    const pool = cardPickPool(selectedCard, t);
+    _pendingPlayCardId = selectedCard.id;
+    _pendingPlayTargetId = tid;
+    document.getElementById('targetTitle').textContent=`${selectedCard.name} — choisir une carte de ${t.name}`;
+    document.getElementById('targetButtons').innerHTML = pool.length
+      ? pool.map(c=>{ const col=COLORS[c.type]||'#fff'; return `<button class="target-btn" style="border-color:${col};color:${col}" onclick="playWithCard(${c.id})">${EMOJI[c.type]} ${c.name}</button>`; }).join('')
+      : '<div style="color:#6b7280;padding:8px">aucune carte ciblable</div>';
+  } else {
+    document.getElementById('target-overlay').classList.remove('active');
+    socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:tid});
+    selectedCard=null;
+  }
+}
+
+function playWithCard(targetCardId){
   document.getElementById('target-overlay').classList.remove('active');
-  socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:tid});
+  socket.emit('action',{type:'play',cardId:_pendingPlayCardId,targetPlayerId:_pendingPlayTargetId,targetCardId});
   selectedCard=null;
+  _pendingPlayCardId=null;
+  _pendingPlayTargetId=null;
 }
 
 function viewStable(playerId){

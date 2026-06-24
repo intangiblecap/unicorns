@@ -22,13 +22,11 @@ function buildDeck() {
   let id = 0;
   const cards = [];
 
-  // Licornes Standards (pas d'effet)
   const basics = ['Licorne Narval','Licorne Vampire','Licorne Zombie','Licorne Ninja','Licorne Robot','Licorne Pirate','Licorne Cowboy','Licorne Astronaute'];
   basics.forEach(name => {
     for(let i=0;i<2;i++) cards.push({id:id++,name,type:'basic',desc:'Licorne Standard. Aucun effet.'});
   });
 
-  // Licornes Magiques
   [
     {name:'Licorne Mystique',effect:'draw1',desc:'Lorsque cette carte entre dans votre Écurie : PIOCHEZ 1 carte.'},
     {name:'Licorne Cupidon',effect:'nursery',desc:'Lorsque cette carte entre dans votre Écurie : amenez 1 Bébé Licorne de la Nurserie dans votre Écurie.'},
@@ -38,7 +36,6 @@ function buildDeck() {
     {name:'Licorne Destructrice',effect:'destroy_on_enter',desc:'Lorsque cette carte entre dans votre Écurie : DÉTRUISEZ 1 carte de l\'Écurie d\'un autre joueur.'},
   ].forEach(c => cards.push({id:id++,...c,type:'magic'}));
 
-  // Améliorations (jouables dans l'Écurie de n'importe quel joueur)
   [
     {name:'Corne Magique',effect:'extra_point',desc:'Votre Écurie a besoin d\'1 Licorne de moins pour gagner.'},
     {name:'Glitter Bomb',effect:'draw_when_attacked',desc:'Si cette carte se trouve dans votre Écurie au début de votre tour : vous pouvez DÉTRUIRE 1 carte d\'une autre Écurie.'},
@@ -46,14 +43,12 @@ function buildDeck() {
     {name:'Miroir des Âmes',effect:'begin_discard2_steal_baby',desc:'Si cette carte se trouve dans votre Écurie au début de votre tour : vous pouvez DÉFAUSSER 2 cartes puis amener 1 Bébé Licorne de la Nurserie dans votre Écurie.'},
   ].forEach(c => { for(let i=0;i<2;i++) cards.push({id:id++,...c,type:'upgrade'}); });
 
-  // Attaques (dans l'Écurie d'un adversaire)
   [
     {name:'Mauvais Sort',effect:'skip_draw',desc:'Le joueur dont l\'Écurie contient cette carte ne peut pas PIOCHER pendant sa Phase de Pioche.'},
     {name:'Voleur de Corne',effect:'no_unicorn',desc:'Le joueur dont l\'Écurie contient cette carte ne peut pas amener de Licorne dans son Écurie.'},
     {name:'Ralentissement',effect:'hand_limit_5',desc:'Le joueur dont l\'Écurie contient cette carte a une limite de main de 5 cartes.'},
   ].forEach(c => { for(let i=0;i<2;i++) cards.push({id:id++,...c,type:'attack'}); });
 
-  // Magie (effet unique, va à la défausse)
   [
     {name:'Récolte Arc-en-ciel',effect:'draw2',desc:'PIOCHEZ 2 cartes.'},
     {name:'Tempête de Licornes',effect:'draw3',desc:'PIOCHEZ 3 cartes.'},
@@ -63,9 +58,8 @@ function buildDeck() {
     {name:'Rituel Sadique',effect:'all_discard1',desc:'Chaque autre joueur doit DÉFAUSSER 1 carte.'},
   ].forEach(c => { for(let i=0;i<2;i++) cards.push({id:id++,...c,type:'spell'}); });
 
-  // Illico
   [
-    {name:'Huuue !!',effect:'nope',desc:'Jouez cette carte pour annuler une carte jouée par un adversaire, ou pour annuler un Huuue !! joué contre vous.'},
+    {name:'Huuue !!',effect:'nope',desc:'Jouez cette carte pour annuler la carte jouée par l\'adversaire, ou pour contrer un Huuue !! joué contre vous.'},
   ].forEach(c => { for(let i=0;i<6;i++) cards.push({id:id++,...c,type:'instant'}); });
 
   return shuffle(cards);
@@ -121,9 +115,9 @@ function pickCard(pool, targetCardId) {
 }
 
 function removeCard(player, cardId) {
-  if(player.stable.some(c=>c.id===cardId))       { player.stable   = player.stable.filter(c=>c.id!==cardId); return; }
-  if(player.upgrades.some(c=>c.id===cardId))      { player.upgrades = player.upgrades.filter(c=>c.id!==cardId); return; }
-  if(player.attacks.some(c=>c.id===cardId))       { player.attacks  = player.attacks.filter(c=>c.id!==cardId); }
+  if(player.stable.some(c=>c.id===cardId))  { player.stable   = player.stable.filter(c=>c.id!==cardId); return; }
+  if(player.upgrades.some(c=>c.id===cardId)) { player.upgrades = player.upgrades.filter(c=>c.id!==cardId); return; }
+  if(player.attacks.some(c=>c.id===cardId))  { player.attacks  = player.attacks.filter(c=>c.id!==cardId); }
 }
 
 function applyCardEffect(room, card, actor, target, targetCardId=null) {
@@ -139,17 +133,11 @@ function applyCardEffect(room, card, actor, target, targetCardId=null) {
     if(card.effect==='nursery'&&room.nursery.length>0){ actor.stable.push(room.nursery.shift()); room.log.push(`${actor.name} amène un Bébé Licorne depuis la Nurserie.`); }
     if(card.effect==='revive'&&room.discard.length>0){ actor.hand.push(room.discard.pop()); room.log.push(`${actor.name} récupère une carte de la défausse.`); }
     if(card.effect==='steal'){
-      const v = (target && target.id !== actor.id) ? target : null;
-      if(v) {
-        const uni=v.stable.filter(c=>['basic','magic'].includes(c.type));
-        if(uni.length>0){ const stolen=pickCard(uni,targetCardId); v.stable=v.stable.filter(c=>c.id!==stolen.id); actor.stable.push(stolen); room.log.push(`${actor.name} vole ${stolen.name} à ${v.name}.`); }
-      }
+      const v=(target&&target.id!==actor.id)?target:null;
+      if(v){ const uni=v.stable.filter(c=>['basic','magic'].includes(c.type)); if(uni.length>0){ const stolen=pickCard(uni,targetCardId); v.stable=v.stable.filter(c=>c.id!==stolen.id); actor.stable.push(stolen); room.log.push(`${actor.name} vole ${stolen.name} à ${v.name}.`); } }
     }
     if(card.effect==='destroy_on_enter'){
-      if(target && target.id !== actor.id){
-        const pool=[...target.stable,...target.upgrades,...target.attacks];
-        if(pool.length>0){ const v=pickCard(pool,targetCardId); removeCard(target,v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); }
-      }
+      if(target&&target.id!==actor.id){ const pool=[...target.stable,...target.upgrades,...target.attacks]; if(pool.length>0){ const v=pickCard(pool,targetCardId); removeCard(target,v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); } }
     }
   } else if(card.type==='upgrade') {
     target.upgrades.push(card);
@@ -167,6 +155,22 @@ function applyCardEffect(room, card, actor, target, targetCardId=null) {
     if(card.effect==='all_discard1'){ room.players.filter(p=>p.id!==actor.id).forEach(p=>{ if(p.hand.length>0){ const d=p.hand.splice(Math.floor(Math.random()*p.hand.length),1)[0]; room.discard.push(d); room.log.push(`${p.name} défausse ${d.name}.`); } }); }
   }
   return true;
+}
+
+// Résout la carte en attente selon la chaîne de Huuue !!
+function resolvePending(room) {
+  if(!room.pendingCard) return;
+  const { card, actorId, targetId, targetCardId, nopeChain } = room.pendingCard;
+  room.pendingCard = null;
+  const noped = (nopeChain||[]).length % 2 === 1;
+  if(noped) {
+    room.discard.push(card);
+    room.log.push(`❌ ${card.name} est annulée par les Huuue !!`);
+    return;
+  }
+  const cardActor = room.players.find(p=>p.id===actorId);
+  const cardTarget = room.players.find(p=>p.id===targetId) || cardActor;
+  if(cardActor) applyCardEffect(room, card, cardActor, cardTarget, targetCardId);
 }
 
 function getState(room, forPlayer) {
@@ -248,17 +252,13 @@ io.on('connection', socket => {
     const actor = room.players.find(p=>p.id===playerId);
     if(!actor) return;
 
-    // Huuue !! — s'ajoute à la chaîne (pair = carte résolue, impair = annulée)
+    // Huuue !! — jouable par n'importe qui pendant begin_of_turn si pendingCard
     if(type === 'nope') {
-      if(!room.pendingCard || room.phase !== 'reaction') return;
-      // Licorne Protectrice : Illico ne peut pas être joué contre le joueur qui a joué la carte
+      if(!room.pendingCard || room.phase !== 'begin_of_turn') return;
       const pendingActor = room.players.find(p=>p.id===room.pendingCard.actorId);
       const chainLen = (room.pendingCard.nopeChain||[]).length;
-      // Si la chaîne est impaire, le dernier Huuue vient d'un adversaire du actorId
-      // On bloque si la protection empêche de noper le joueur actorId (premier nope seulement)
-      if(chainLen === 0 && pendingActor && pendingActor.upgrades.some(u=>u.effect==='protection') && actor.id!==pendingActor.id) {
-        return;
-      }
+      // Licorne Protectrice : bloque le premier Huuue !! contre le joueur protégé
+      if(chainLen === 0 && pendingActor && pendingActor.upgrades.some(u=>u.effect==='protection') && actor.id!==pendingActor.id) return;
       const cardIdx = actor.hand.findIndex(c=>c.id===cardId && c.effect==='nope');
       if(cardIdx === -1) return;
       const nopeCard = actor.hand.splice(cardIdx, 1)[0];
@@ -266,31 +266,8 @@ io.on('connection', socket => {
       room.lastCard = nopeCard;
       if(!room.pendingCard.nopeChain) room.pendingCard.nopeChain = [];
       room.pendingCard.nopeChain.push({ playerId: actor.id, playerName: actor.name });
-      const newLen = room.pendingCard.nopeChain.length;
-      room.log.push(`🙅 ${actor.name} joue Huuue !! (${newLen} au total — ${newLen%2===1?'carte annulée si personne ne contre':'carte en jeu si personne ne contre'})`);
-      broadcast(room);
-      return;
-    }
-
-    // Résoudre la carte en attente
-    if(type === 'resolve') {
-      if(cp.id !== playerId || !room.pendingCard || room.phase !== 'reaction') return;
-      const { card, actorId, targetId, nopeChain } = room.pendingCard;
-      const noped = (nopeChain||[]).length % 2 === 1; // impair = annulée
-      const cardActor = room.players.find(p=>p.id===actorId);
-      const cardTarget = room.players.find(p=>p.id===targetId) || cardActor;
-      room.pendingCard = null;
-      if(noped) {
-        room.discard.push(card);
-        room.log.push(`❌ ${card.name} est annulée !`);
-        room.phase = 'end';
-        broadcast(room); return;
-      }
-      const applied = applyCardEffect(room, card, cardActor, cardTarget, targetCardId);
-      if(!applied) { room.phase = 'action'; broadcast(room); return; }
-      const w = checkWin(room);
-      if(w !== null){ room.winner=w; room.log.push(`🏆 ${room.players[w].name} a gagné !`); broadcast(room); return; }
-      room.phase = 'end';
+      const n = room.pendingCard.nopeChain.length;
+      room.log.push(`🙅 ${actor.name} joue Huuue !! (${n} total — carte ${n%2===1?'annulée':'en jeu'} si personne ne contre)`);
       broadcast(room);
       return;
     }
@@ -298,19 +275,7 @@ io.on('connection', socket => {
     // À partir d'ici, seul le joueur courant peut agir
     if(cp.id !== playerId) return;
 
-    // Phase début de tour
-    if(type === 'skip_begin') {
-      if(room.phase !== 'begin_of_turn') return;
-      const hasSkip = cp.attacks.some(d=>d.effect==='skip_draw');
-      if(hasSkip) {
-        room.log.push(`${cp.name} ne peut pas piocher (Mauvais Sort).`);
-        room.phase = 'action';
-      } else {
-        room.phase = 'draw';
-      }
-      broadcast(room); return;
-    }
-
+    // Début de tour : effets de début + piocher
     if(type === 'use_begin') {
       if(room.phase !== 'begin_of_turn') return;
       const upgradeCard = cp.upgrades.find(c=>c.id===cardId);
@@ -337,13 +302,8 @@ io.on('connection', socket => {
         indices.sort((a,b)=>b-a);
         const discarded = indices.map(i=>cp.hand.splice(i,1)[0]);
         room.discard.push(...discarded);
-        if(room.nursery.length > 0) {
-          const baby = room.nursery.shift();
-          cp.stable.push(baby);
-          room.log.push(`${cp.name} active Miroir des Âmes : défausse 2 cartes, amène ${baby.name} !`);
-        } else {
-          room.log.push(`${cp.name} active Miroir des Âmes : Nurserie vide.`);
-        }
+        if(room.nursery.length > 0) { const baby=room.nursery.shift(); cp.stable.push(baby); room.log.push(`${cp.name} active Miroir des Âmes : défausse 2 cartes, amène ${baby.name} !`); }
+        else { room.log.push(`${cp.name} active Miroir des Âmes : Nurserie vide.`); }
         room.usedBeginEffects.push(cardId);
         broadcast(room); return;
       }
@@ -363,11 +323,21 @@ io.on('connection', socket => {
       return;
     }
 
-    // Phase pioche
+    // Piocher : résout d'abord la pendingCard, puis pioche
     if(type === 'draw') {
-      if(room.phase !== 'draw') return;
-      if(room.deck.length > 0) { cp.hand.push(room.deck.shift()); room.log.push(`${cp.name} pioche une carte.`); }
-      room.phase = 'action';
+      if(room.phase !== 'begin_of_turn') return;
+      // Résoudre la carte en attente avant de piocher
+      resolvePending(room);
+      const w = checkWin(room);
+      if(w !== null){ room.winner=w; room.log.push(`🏆 ${room.players[w].name} a gagné !`); broadcast(room); return; }
+      // Mauvais Sort : pas de pioche
+      if(cp.attacks.some(d=>d.effect==='skip_draw')) {
+        room.log.push(`${cp.name} ne peut pas piocher (Mauvais Sort).`);
+        room.phase = 'action';
+      } else {
+        if(room.deck.length > 0) { cp.hand.push(room.deck.shift()); room.log.push(`${cp.name} pioche une carte.`); }
+        room.phase = 'action';
+      }
       broadcast(room); return;
     }
 
@@ -393,29 +363,22 @@ io.on('connection', socket => {
       const card = cp.hand.splice(cardIdx, 1)[0];
       const target = room.players.find(p=>p.id===targetPlayerId) || cp;
       room.lastCard = card;
-
-      if(card.type === 'instant') {
-        room.discard.push(card);
-        room.log.push(`${cp.name} joue ${card.name}.`);
-        broadcast(room); return;
-      }
-
-      room.pendingCard = { card, actorId: cp.id, targetId: target.id };
-      room.phase = 'reaction';
-      room.log.push(`${cp.name} joue ${card.name}... Huuue !! possible.`);
+      // La carte va en attente — le joueur suivant devra piocher pour la résoudre
+      room.pendingCard = { card, actorId: cp.id, targetId: target.id, targetCardId: targetCardId||null, nopeChain: [] };
+      room.log.push(`${cp.name} joue ${card.name}${target.id!==cp.id?' sur '+target.name:''}. Huuue !! possible jusqu'à la prochaine pioche !`);
+      room.phase = 'end';
       broadcast(room); return;
     }
 
-    // Phase fin de tour
+    // Fin de tour
     if(type === 'endturn') {
       if(room.phase !== 'end') return;
-      // Limite de main : 7 par défaut, 5 si Ralentissement
       const limit = cp.attacks.some(d=>d.effect==='hand_limit_5') ? 5 : 7;
       while(cp.hand.length > limit) { room.discard.push(cp.hand.pop()); }
       room.currentPlayer = (room.currentPlayer + 1) % room.players.length;
       room.phase = 'begin_of_turn';
       room.usedBeginEffects = [];
-      room.pendingCard = null;
+      // pendingCard persiste intentionnellement jusqu'à la pioche du joueur suivant
       room.log.push(`--- Tour de ${room.players[room.currentPlayer].name} ---`);
       broadcast(room); return;
     }
