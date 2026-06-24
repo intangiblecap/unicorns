@@ -317,7 +317,8 @@ function renderActions(isMyTurn, phase, me){
               <button class="action-btn" style="border-color:#16a34a;color:#16a34a" ${sel<req?'disabled':''} onclick="confirmBeginEffect()">✅ confirmer</button>
               <button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="cancelBeginEffect()">❌ annuler</button>`;
       } else {
-        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">▶️ lancer la phase de pioche</button>`;
+        const hasSkipDraw=(me.attacks||[]).some(a=>a.effect==='skip_draw');
+        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">${hasSkipDraw?'⚠️ passer (mauvais sort actif — pas de pioche)':'▶️ lancer la phase de pioche'}</button>`;
         const beginCards=(me.upgrades||[]).filter(c=>['begin_discard1_draw1','begin_discard2_steal_baby','draw_when_attacked'].includes(c.effect)&&!(state.usedBeginEffects||[]).includes(c.id));
         beginCards.forEach(c=>{
           if(c.effect==='draw_when_attacked'){
@@ -460,10 +461,10 @@ function resolveOrPick(){
   if(!targetPlayer){ doAction('resolve'); return; }
 
   let pool=[];
-  if(pc.effect==='destroy') pool=[...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks].filter(c=>c.type!=='baby');
-  else if(pc.effect==='steal_spell') pool=targetPlayer.stable.filter(c=>['basic','magic'].includes(c.type));
+  if(pc.effect==='destroy') pool=[...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks];
+  else if(pc.effect==='steal_spell') pool=targetPlayer.stable.filter(c=>['baby','basic','magic'].includes(c.type));
   else if(pc.effect==='return') pool=targetPlayer.stable.filter(c=>['basic','magic','baby'].includes(c.type));
-  else if(pc.effect==='destroy_on_enter') pool=[...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks].filter(c=>c.type!=='baby');
+  else if(pc.effect==='destroy_on_enter') pool=[...targetPlayer.stable,...targetPlayer.upgrades,...targetPlayer.attacks];
   else if(pc.effect==='steal') pool=targetPlayer.stable.filter(c=>['basic','magic'].includes(c.type));
 
   if(pool.length===0){ doAction('resolve'); return; }

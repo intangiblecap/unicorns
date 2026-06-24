@@ -98,7 +98,7 @@ function initGame(room) {
   const deck = buildDeck();
   const nursery = buildNursery();
   room.players.forEach((p,i) => {
-    p.hand = deck.splice(0,5);
+    p.hand = deck.splice(0,7);
     p.stable = [nursery[i]];
     p.upgrades = [];
     p.attacks = [];
@@ -148,8 +148,7 @@ function applyCardEffect(room, card, actor, target, targetCardId=null) {
     }
     if(card.effect==='destroy_on_enter'){
       if(target && target.id !== actor.id){
-        const pool=[...target.stable,...target.upgrades,...target.attacks].filter(c=>c.type!=='baby');
-        if(pool.length===0) pool.push(...target.stable.filter(c=>c.type==='baby'));
+        const pool=[...target.stable,...target.upgrades,...target.attacks];
         if(pool.length>0){ const v=pickCard(pool,targetCardId); removeCard(target,v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); }
       }
     }
@@ -163,8 +162,8 @@ function applyCardEffect(room, card, actor, target, targetCardId=null) {
     room.discard.push(card);
     if(card.effect==='draw2'){ for(let i=0;i<2&&room.deck.length>0;i++) actor.hand.push(room.deck.shift()); room.log.push(`${actor.name} pioche 2 cartes.`); }
     if(card.effect==='draw3'){ for(let i=0;i<3&&room.deck.length>0;i++) actor.hand.push(room.deck.shift()); room.log.push(`${actor.name} pioche 3 cartes.`); }
-    if(card.effect==='destroy'){ const pool=[...target.stable,...target.upgrades,...target.attacks].filter(c=>c.type!=='baby'); if(pool.length>0){ const v=pickCard(pool,targetCardId); removeCard(target,v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); } }
-    if(card.effect==='steal_spell'){ const u=target.stable.filter(c=>['basic','magic'].includes(c.type)); if(u.length>0){ const v=pickCard(u,targetCardId); target.stable=target.stable.filter(c=>c.id!==v.id); actor.stable.push(v); room.log.push(`${actor.name} vole ${v.name} à ${target.name}.`); } }
+    if(card.effect==='destroy'){ const pool=[...target.stable,...target.upgrades,...target.attacks]; if(pool.length>0){ const v=pickCard(pool,targetCardId); removeCard(target,v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); } }
+    if(card.effect==='steal_spell'){ const u=target.stable.filter(c=>['baby','basic','magic'].includes(c.type)); if(u.length>0){ const v=pickCard(u,targetCardId); target.stable=target.stable.filter(c=>c.id!==v.id); actor.stable.push(v); room.log.push(`${actor.name} vole ${v.name} à ${target.name}.`); } }
     if(card.effect==='return'){ const u=target.stable.filter(c=>['basic','magic','baby'].includes(c.type)); if(u.length>0){ const v=pickCard(u,targetCardId); target.stable=target.stable.filter(c=>c.id!==v.id); room.nursery.push(v); room.log.push(`${actor.name} renvoie ${v.name} à la Nurserie.`); } }
     if(card.effect==='all_discard1'){ room.players.filter(p=>p.id!==actor.id).forEach(p=>{ if(p.hand.length>0){ const d=p.hand.splice(Math.floor(Math.random()*p.hand.length),1)[0]; room.discard.push(d); room.log.push(`${p.name} défausse ${d.name}.`); } }); }
   }
