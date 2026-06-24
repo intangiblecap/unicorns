@@ -65,9 +65,8 @@ function buildDeck() {
 
   // Illico
   [
-    {name:'Huuue !!',effect:'nope',desc:'Jouez cette carte lorsqu\'un adversaire joue une carte depuis sa main pour en annuler l\'effet.'},
-    {name:'Youpi !!',effect:'yep',desc:'Jouez cette carte pour annuler un Huuue !! joué contre vous.'},
-  ].forEach(c => { for(let i=0;i<3;i++) cards.push({id:id++,...c,type:'instant'}); });
+    {name:'Huuue !!',effect:'nope',desc:'Jouez cette carte pour annuler une carte jouée par un adversaire, ou pour annuler un Huuue !! joué contre vous.'},
+  ].forEach(c => { for(let i=0;i<6;i++) cards.push({id:id++,...c,type:'instant'}); });
 
   return shuffle(cards);
 }
@@ -98,7 +97,7 @@ function initGame(room) {
   const deck = buildDeck();
   const nursery = buildNursery();
   room.players.forEach((p,i) => {
-    p.hand = deck.splice(0,7);
+    p.hand = deck.splice(0,5);
     p.stable = [nursery[i]];
     p.upgrades = [];
     p.attacks = [];
@@ -249,36 +248,26 @@ io.on('connection', socket => {
     const actor = room.players.find(p=>p.id===playerId);
     if(!actor) return;
 
-    // Huuue !! — annule une carte jouée depuis la main
+    // Huuue !! — s'ajoute à la chaîne (pair = carte résolue, impair = annulée)
     if(type === 'nope') {
       if(!room.pendingCard || room.phase !== 'reaction') return;
-      // Licorne Protectrice : Illico ne peut pas être joué contre elle
+      // Licorne Protectrice : Illico ne peut pas être joué contre le joueur qui a joué la carte
       const pendingActor = room.players.find(p=>p.id===room.pendingCard.actorId);
-      if(pendingActor && pendingActor.upgrades.some(u=>u.effect==='protection') && actor.id!==pendingActor.id) {
+      const chainLen = (room.pendingCard.nopeChain||[]).length;
+      // Si la chaîne est impaire, le dernier Huuue vient d'un adversaire du actorId
+      // On bloque si la protection empêche de noper le joueur actorId (premier nope seulement)
+      if(chainLen === 0 && pendingActor && pendingActor.upgrades.some(u=>u.effect==='protection') && actor.id!==pendingActor.id) {
         return;
       }
       const cardIdx = actor.hand.findIndex(c=>c.id===cardId && c.effect==='nope');
       if(cardIdx === -1) return;
       const nopeCard = actor.hand.splice(cardIdx, 1)[0];
-      const cancelled = room.pendingCard.card;
-      room.discard.push(nopeCard, cancelled);
+      room.discard.push(nopeCard);
       room.lastCard = nopeCard;
-      room.pendingCard = null;
-      room.log.push(`🙅 ${actor.name} joue Huuue !! et annule ${cancelled.name} !`);
-      room.phase = 'end';
-      broadcast(room);
-      return;
-    }
-
-    // Youpi !! — annule un Huuue !! (ici on l'utilise comme instant normal)
-    if(type === 'play_instant') {
-      const cardIdx = actor.hand.findIndex(c=>c.id===cardId && c.type==='instant');
-      if(cardIdx === -1) return;
-      const card = actor.hand.splice(cardIdx, 1)[0];
-      room.discard.push(card);
-      room.lastCard = card;
-      room.log.push(`⚡ ${actor.name} joue ${card.name} !`);
-      io.to(roomId).emit('instant_played', { playerName: actor.name, cardName: card.name });
+      if(!room.pendingCard.nopeChain) room.pendingCard.nopeChain = [];
+      room.pendingCard.nopeChain.push({ playerId: actor.id, playerName: actor.name });
+      const newLen = room.pendingCard.nopeChain.length;
+      room.log.push(`🙅 ${actor.name} joue Huuue !! (${newLen} au total — ${newLen%2===1?'carte annulée si personne ne contre':'carte en jeu si personne ne contre'})`);
       broadcast(room);
       return;
     }
@@ -286,10 +275,17 @@ io.on('connection', socket => {
     // Résoudre la carte en attente
     if(type === 'resolve') {
       if(cp.id !== playerId || !room.pendingCard || room.phase !== 'reaction') return;
-      const { card, actorId, targetId } = room.pendingCard;
+      const { card, actorId, targetId, nopeChain } = room.pendingCard;
+      const noped = (nopeChain||[]).length % 2 === 1; // impair = annulée
       const cardActor = room.players.find(p=>p.id===actorId);
       const cardTarget = room.players.find(p=>p.id===targetId) || cardActor;
       room.pendingCard = null;
+      if(noped) {
+        room.discard.push(card);
+        room.log.push(`❌ ${card.name} est annulée !`);
+        room.phase = 'end';
+        broadcast(room); return;
+      }
       const applied = applyCardEffect(room, card, cardActor, cardTarget, targetCardId);
       if(!applied) { room.phase = 'action'; broadcast(room); return; }
       const w = checkWin(room);
