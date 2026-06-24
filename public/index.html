@@ -226,7 +226,7 @@ socket.on('state',(s)=>{
   state=s;
   if(s.winner!==null){
     const w=s.players.find(p=>p.id===s.winner);
-    document.getElementById('winnerName').textContent=`bravo ${w.name} !!!`;
+    document.getElementById('winnerName').textContent=`bravo Ioannis !!!`;
     document.getElementById('winnerDesc').textContent=`🦄 ${w.stableCount} licornes dans l'écurie — victoire !`;
     show('screen-win');return;
   }
