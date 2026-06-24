@@ -85,49 +85,49 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
 <!-- HOME -->
 <div id="screen-home" class="screen active">
   <div style="font-size:64px;margin-bottom:8px">🦄</div>
-  <h1>Unstable Unicorns</h1>
-  <div class="sub">Jeu de cartes multijoueur · 2-6 joueurs</div>
-  <input id="nameInput" placeholder="Ton prénom" maxlength="15" style="width:100%;max-width:360px;padding:12px;border-radius:10px;border:1px solid #4c1d95;background:#1e1b4b;color:#fff;font-size:16px;margin-bottom:16px">
-  <button class="btn btn-purple" onclick="goCreate()">✨ Créer une partie</button>
-  <button class="btn btn-outline" onclick="goJoin()">🔗 Rejoindre une partie</button>
+  <h1>unstable unicorns</h1>
+  <div class="sub">jeu de cartes multijoueur · 2-6 joueurs</div>
+  <input id="nameInput" placeholder="ton prénom" maxlength="15" autocapitalize="none" autocorrect="off" style="width:100%;max-width:360px;padding:12px;border-radius:10px;border:1px solid #4c1d95;background:#1e1b4b;color:#fff;font-size:16px;margin-bottom:16px">
+  <button class="btn btn-purple" onclick="goCreate()">✨ créer une partie</button>
+  <button class="btn btn-outline" onclick="goJoin()">🔗 rejoindre une partie</button>
   <div class="error" id="home-error"></div>
 </div>
 
 <!-- CREATE -->
 <div id="screen-create" class="screen">
   <div style="font-size:48px;margin-bottom:12px">✨</div>
-  <h1>Nouvelle partie</h1>
-  <div class="sub">Partage ce code avec tes amis</div>
+  <h1>nouvelle partie</h1>
+  <div class="sub">partage ce code avec tes amis</div>
   <div class="code-display">
-    <div class="code-label">Code de la salle</div>
+    <div class="code-label">code de la salle</div>
     <div class="code-value" id="generatedCode"></div>
   </div>
   <div class="players-list" id="createPlayersList"></div>
-  <button class="btn btn-purple" id="startBtn" onclick="startGame()" disabled>🦄 Lancer la partie</button>
-  <div style="color:#6b7280;font-size:12px;text-align:center">En attente d'autres joueurs...</div>
+  <button class="btn btn-purple" id="startBtn" onclick="startGame()" disabled>🦄 lancer la partie</button>
+  <div style="color:#6b7280;font-size:12px;text-align:center">en attente d'autres joueurs...</div>
 </div>
 
 <!-- JOIN -->
 <div id="screen-join" class="screen">
   <div style="font-size:48px;margin-bottom:12px">🔗</div>
-  <h1>Rejoindre</h1>
-  <div class="sub">Entre le code donné par ton ami</div>
+  <h1>rejoindre</h1>
+  <div class="sub">entre le code donné par ton ami</div>
   <div class="card-box">
-    <div class="label">Code de la salle</div>
-    <input id="codeInput" placeholder="Ex: LICORNE" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;font-size:20px;text-align:center">
+    <div class="label">code de la salle</div>
+    <input id="codeInput" placeholder="ex: abcdef" maxlength="6" autocapitalize="none" autocorrect="off" autocomplete="off" style="letter-spacing:4px;font-size:20px;text-align:center;text-transform:uppercase">
   </div>
-  <button class="btn btn-purple" onclick="joinRoom()">Rejoindre</button>
-  <button class="btn btn-outline" onclick="show('screen-home')">← Retour</button>
+  <button class="btn btn-purple" onclick="joinRoom()">rejoindre</button>
+  <button class="btn btn-outline" onclick="show('screen-home')">← retour</button>
   <div class="error" id="join-error"></div>
 </div>
 
 <!-- LOBBY -->
 <div id="screen-lobby" class="screen">
   <div style="font-size:48px;margin-bottom:12px">⏳</div>
-  <h1>En attente...</h1>
-  <div class="sub">Le créateur va lancer la partie</div>
+  <h1>en attente...</h1>
+  <div class="sub">le créateur va lancer la partie</div>
   <div class="code-display">
-    <div class="code-label">Code de la salle</div>
+    <div class="code-label">code de la salle</div>
     <div class="code-value" id="lobbyCode"></div>
   </div>
   <div class="players-list" id="lobbyPlayersList"></div>
@@ -142,13 +142,13 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
   <div id="game-board">
     <div id="pendingZone" style="display:none"></div>
     <div class="last-card-area" id="lastCardArea">
-      <div class="last-card-label">Dernière carte jouée</div>
-      <div id="lastCardDisplay" style="color:#6b7280;font-size:13px">Aucune carte jouée</div>
+      <div class="last-card-label">dernière carte jouée</div>
+      <div id="lastCardDisplay" style="color:#6b7280;font-size:13px">aucune carte jouée</div>
     </div>
     <div class="phase-actions" id="phaseActions"></div>
   </div>
   <div id="game-hand-wrap">
-    <div class="hand-title">TA MAIN · <span id="handCount">0</span> carte(s) <span id="discardHint" style="color:#fca5a5;display:none"></span></div>
+    <div class="hand-title">ta main · <span id="handCount">0</span> carte(s) <span id="discardHint" style="color:#fca5a5;display:none"></span></div>
     <div class="hand-cards" id="handCards"></div>
   </div>
 </div>
@@ -167,7 +167,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
   <div style="font-size:80px;margin-bottom:16px">🏆</div>
   <div style="font-size:28px;font-weight:900;color:#fcd34d;margin-bottom:8px" id="winnerName"></div>
   <div style="color:#a78bfa;font-size:15px;margin-bottom:32px" id="winnerDesc"></div>
-  <button class="btn btn-purple" onclick="location.reload()" style="max-width:200px">🦄 Rejouer</button>
+  <button class="btn btn-purple" onclick="location.reload()" style="max-width:200px">🦄 rejouer</button>
 </div>
 
 <!-- TARGET OVERLAY -->
@@ -313,35 +313,34 @@ function renderActions(isMyTurn, phase, me){
       if(beginEffectMode){
         const req=beginEffectMode.requiredDiscards;
         const sel=discardSelection.length;
-        html=`<div style="color:#fca5a5;font-size:12px">Sélectionne ${req} carte(s) à défausser (${sel}/${req})</div>
-              <button class="action-btn" style="border-color:#16a34a;color:#16a34a" ${sel<req?'disabled':''} onclick="confirmBeginEffect()">✅ Confirmer</button>
-              <button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="cancelBeginEffect()">❌ Annuler</button>`;
+        html=`<div style="color:#fca5a5;font-size:12px">sélectionne ${req} carte(s) à défausser (${sel}/${req})</div>
+              <button class="action-btn" style="border-color:#16a34a;color:#16a34a" ${sel<req?'disabled':''} onclick="confirmBeginEffect()">✅ confirmer</button>
+              <button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="cancelBeginEffect()">❌ annuler</button>`;
       } else {
-        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">▶️ Passer au tirage</button>`;
-        const beginCards=(me.upgrades||[]).filter(c=>['begin_discard1_draw1','begin_discard2_steal_baby'].includes(c.effect)&&!(state.usedBeginEffects||[]).includes(c.id));
+        html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">▶️ passer au tirage</button>`;
+        const beginCards=(me.upgrades||[]).filter(c=>['begin_discard1_draw1','begin_discard2_steal_baby','draw_when_attacked'].includes(c.effect)&&!(state.usedBeginEffects||[]).includes(c.id));
         beginCards.forEach(c=>{
-          const req=c.effect==='begin_discard1_draw1'?1:2;
+          const req=c.effect==='begin_discard1_draw1'?1:c.effect==='begin_discard2_steal_baby'?2:0;
           html+=`<button class="action-btn" style="border-color:#86efac;color:#86efac" onclick="startBeginEffect(${c.id},${req})">⬆️ ${c.name}</button>`;
         });
       }
     } else if(phase==='draw'){
-      html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('draw')">📥 Piocher</button>`;
+      html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('draw')">📥 piocher</button>`;
     } else if(phase==='action'){
-      html=`<button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="doAction('skip')">⏭ Passer</button>
-            <button class="action-btn" style="border-color:#a78bfa;color:#a78bfa" onclick="doAction('redraw')">🔄 Repiocher</button>`;
-      if(selectedCard) html+=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="confirmPlay()">✅ Jouer</button><button class="action-btn" style="border-color:#dc2626;color:#dc2626" onclick="cancelCard()">❌</button>`;
+      html=`<button class="action-btn" style="border-color:#6b7280;color:#6b7280" onclick="doAction('skip')">⏭ passer</button>
+            <button class="action-btn" style="border-color:#a78bfa;color:#a78bfa" onclick="doAction('redraw')">🔄 repiocher</button>`;
+      if(selectedCard) html+=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="confirmPlay()">✅ jouer</button><button class="action-btn" style="border-color:#dc2626;color:#dc2626" onclick="cancelCard()">❌</button>`;
     } else if(phase==='reaction'){
-      html=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="doAction('resolve')">✅ Résoudre →</button>`;
+      html=`<button class="action-btn" style="border-color:#16a34a;color:#16a34a" onclick="doAction('resolve')">✅ résoudre →</button>`;
     } else if(phase==='end'){
-      html=`<button class="action-btn" style="border-color:#f9a8d4;color:#f9a8d4" onclick="doAction('endturn')">➡️ Fin du tour</button>`;
+      html=`<button class="action-btn" style="border-color:#f9a8d4;color:#f9a8d4" onclick="doAction('endturn')">➡️ fin du tour</button>`;
     }
   } else {
     const cpName=state.players[state.currentPlayer]?.name;
-    html=`<div style="color:#6b7280;font-size:12px">Tour de ${cpName}...</div>`;
-    // HUE ! button during reaction if player has Non !!
+    html=`<div style="color:#6b7280;font-size:12px">tour de ${cpName}...</div>`;
     const hasNope=(me.hand||[]).some(c=>c.effect==='nope');
     if(phase==='reaction' && hasNope){
-      html+=`<button class="hue-btn" onclick="playHue()">🙅 HUE !</button>`;
+      html+=`<button class="hue-btn" onclick="playHue()">🙅 huuue !!</button>`;
     }
   }
 
