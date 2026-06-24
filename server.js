@@ -164,6 +164,24 @@ io.on('connection', socket => {
     const room = rooms[roomId];
     if(!room || !room.started || room.winner !== null) return;
     const cp = room.players[room.currentPlayer];
+
+    // Cartes instant : jouables par n'importe quel joueur hors de son tour
+    if(type === 'play_instant') {
+      const actor = room.players.find(p=>p.id===playerId);
+      if(!actor) return;
+      const cardIdx = actor.hand.findIndex(c=>c.id===cardId);
+      if(cardIdx === -1) return;
+      const card = actor.hand[cardIdx];
+      if(card.type !== 'instant') return;
+      actor.hand.splice(cardIdx,1);
+      room.discard.push(card);
+      room.lastCard = card;
+      room.log.push(`⚡ ${actor.name} joue ${card.name} !`);
+      io.to(roomId).emit('instant_played', { playerName: actor.name, cardName: card.name });
+      broadcast(room);
+      return;
+    }
+
     if(cp.id !== playerId) return;
 
     if(type === 'draw') {

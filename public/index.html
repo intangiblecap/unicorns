@@ -37,7 +37,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
 .player-chip-name{font-size:11px;font-weight:700;color:#e2e8f0;white-space:nowrap}
 .player-chip-uni{font-size:16px;margin:2px 0}
 .player-chip-info{font-size:10px;color:#818cf8}
-.last-card-area{background:#1e1b4b;border:2px solid #312e81;border-radius:14px;padding:14px;text-align:center;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:8px}
+.last-card-area{background:#1e1b4b;border:2px solid #312e81;border-radius:14px;padding:14px;text-align:center;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:8px}
 .last-card-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
 .phase-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .action-btn{padding:10px 16px;border-radius:10px;border:2px solid;font-weight:700;cursor:pointer;font-size:13px;background:transparent}
@@ -48,15 +48,24 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
 .hand-card-type{font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:3px}
 .hand-card-name{font-size:12px;font-weight:700;color:#e2e8f0;line-height:1.3}
 .hand-card-desc{font-size:10px;color:#94a3b8;margin-top:3px;line-height:1.3}
-.log-bar{font-size:11px;color:#818cf8;text-align:center;padding:2px 0;height:16px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* Log scrollable */
+.log-area{background:#1e1b4b22;border:1px solid #312e81;border-radius:8px;padding:6px 10px;margin-bottom:8px;max-height:56px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.log-line{font-size:11px;color:#818cf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-line:last-child{color:#c4b5fd}
+/* Stable */
 #screen-stable{padding:16px;justify-content:flex-start}
 .stable-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;width:100%}
 .back-btn{background:#1e1b4b;border:1px solid #312e81;color:#a78bfa;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
 .stable-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;width:100%}
 .stable-card{border-radius:10px;padding:10px;border:2px solid}
+/* Target overlay */
 #target-overlay{display:none;position:fixed;inset:0;background:#000c;z-index:100;flex-direction:column;align-items:center;justify-content:center;padding:20px}
 #target-overlay.active{display:flex}
 .target-btn{width:100%;max-width:300px;padding:14px;border-radius:12px;background:#fcd34d22;border:2px solid #fcd34d;color:#fcd34d;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px}
+/* Instant notification */
+#instant-notif{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fb923c;color:#fff;font-weight:700;font-size:13px;border-radius:10px;padding:10px 20px;z-index:200;animation:slideDown 0.3s ease}
+@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* Win */
 #screen-win{align-items:center;justify-content:center;text-align:center}
 </style>
 </head>
@@ -117,7 +126,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
 <div id="screen-game" class="screen">
   <div id="game-top">
     <div class="players-row" id="playersRow"></div>
-    <div class="log-bar" id="logBar"></div>
+    <div class="log-area" id="logArea"></div>
   </div>
   <div id="game-board">
     <div class="last-card-area" id="lastCardArea">
@@ -127,7 +136,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
     <div class="phase-actions" id="phaseActions"></div>
   </div>
   <div id="game-hand-wrap">
-    <div class="hand-title">TA MAIN</div>
+    <div class="hand-title">TA MAIN · <span id="handCount">0</span> carte(s)</div>
     <div class="hand-cards" id="handCards"></div>
   </div>
 </div>
@@ -155,6 +164,9 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
   <div id="targetButtons"></div>
   <div style="color:#6b7280;font-size:13px;margin-top:12px;cursor:pointer;text-decoration:underline" onclick="cancelTarget()">Annuler</div>
 </div>
+
+<!-- INSTANT NOTIF -->
+<div id="instant-notif"></div>
 
 <script>
 const socket = io();
@@ -200,7 +212,6 @@ function joinRoom() {
 
 function startGame() { socket.emit('start'); }
 
-// Socket events
 socket.on('created', ({ roomId, playerId }) => {
   myId = playerId;
   isHost = true;
@@ -209,7 +220,7 @@ socket.on('created', ({ roomId, playerId }) => {
   show('screen-create');
 });
 
-socket.on('lobby', ({ players, roomId, hostId }) => {
+socket.on('lobby', ({ players, roomId }) => {
   currentRoomId = roomId;
   if (myId === null) myId = players[players.length - 1]?.id;
 
@@ -233,9 +244,17 @@ socket.on('lobby', ({ players, roomId, hostId }) => {
 });
 
 socket.on('joined', ({ playerId }) => { myId = playerId; });
+
 socket.on('error', msg => {
   document.getElementById('join-error').textContent = msg;
   document.getElementById('home-error').textContent = msg;
+});
+
+socket.on('instant_played', ({ playerName, cardName }) => {
+  const el = document.getElementById('instant-notif');
+  el.textContent = `⚡ ${playerName} joue ${cardName} !`;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2500);
 });
 
 socket.on('state', (s) => {
@@ -255,7 +274,6 @@ function renderGame() {
   const me = state.me;
   const isMyTurn = state.players[state.currentPlayer]?.id === me.id;
 
-  // Players row
   document.getElementById('playersRow').innerHTML = state.players.map(p => `
     <div class="player-chip ${p.isCurrentPlayer?'active-turn':''} ${p.id===me.id?'me':''}" onclick="viewStable(${p.id})">
       <div class="player-chip-name">${p.id===me.id?'★ ':''}${p.name}</div>
@@ -265,7 +283,10 @@ function renderGame() {
     </div>
   `).join('');
 
-  document.getElementById('logBar').textContent = state.log[state.log.length-1] || '';
+  // Log scrollable
+  const logEl = document.getElementById('logArea');
+  logEl.innerHTML = state.log.map(l => `<div class="log-line">${l}</div>`).join('');
+  logEl.scrollTop = logEl.scrollHeight;
 
   // Last card
   const lc = state.lastCard;
@@ -273,7 +294,7 @@ function renderGame() {
   if (lc) {
     const col = COLORS[lc.type]||'#fff';
     document.getElementById('lastCardArea').style.borderColor = col+'88';
-    lcEl.innerHTML = `<div style="padding:10px 18px;border-radius:10px;background:${col}22;border:2px solid ${col};color:${col};font-weight:700;font-size:14px">${EMOJI[lc.type]} ${lc.name}</div><div style="font-size:11px;color:#6b7280;margin-top:6px">${lc.desc}</div>`;
+    lcEl.innerHTML = `<div style="padding:8px 16px;border-radius:10px;background:${col}22;border:2px solid ${col};color:${col};font-weight:700;font-size:13px">${EMOJI[lc.type]} ${lc.name}</div><div style="font-size:11px;color:#6b7280;margin-top:4px">${lc.desc}</div>`;
   } else {
     document.getElementById('lastCardArea').style.borderColor = '#312e81';
     lcEl.innerHTML = '<div style="color:#6b7280;font-size:13px">Aucune carte jouée</div>';
@@ -281,6 +302,8 @@ function renderGame() {
 
   // Actions
   const actEl = document.getElementById('phaseActions');
+  const canPlayInstant = me.hand && me.hand.some(c => c.type === 'instant');
+
   if (isMyTurn) {
     let html = '';
     if (state.phase==='draw') html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('draw')">📥 Piocher</button>`;
@@ -291,13 +314,19 @@ function renderGame() {
     else if (state.phase==='end') html=`<button class="action-btn" style="border-color:#f9a8d4;color:#f9a8d4" onclick="doAction('endturn')">➡️ Fin du tour</button>`;
     actEl.innerHTML = html;
   } else {
-    actEl.innerHTML = `<div style="color:#6b7280;font-size:13px">Tour de ${state.players[state.currentPlayer]?.name}...</div>`;
+    let html = `<div style="color:#6b7280;font-size:13px">Tour de ${state.players[state.currentPlayer]?.name}...</div>`;
+    if (canPlayInstant) {
+      html += `<button class="action-btn" style="border-color:#fb923c;color:#fb923c" onclick="playInstant()">⚡ Jouer un Instant</button>`;
+    }
+    actEl.innerHTML = html;
   }
 
   // Hand
-  document.getElementById('handCards').innerHTML = me.hand.map(card => {
+  document.getElementById('handCount').textContent = me.hand?.length || 0;
+  document.getElementById('handCards').innerHTML = (me.hand || []).map(card => {
     const col = COLORS[card.type]||'#fff';
-    return `<div class="hand-card ${selectedCard?.id===card.id?'selected':''}" style="background:${col}18;border-color:${selectedCard?.id===card.id?col:col+'44'}" onclick="selectCard(${card.id})">
+    const isSelectable = isMyTurn && state.phase==='action' || card.type==='instant';
+    return `<div class="hand-card ${selectedCard?.id===card.id?'selected':''}" style="background:${col}18;border-color:${selectedCard?.id===card.id?col:col+'44'};opacity:${isSelectable?1:0.6}" onclick="selectCard(${card.id})">
       <div class="hand-card-type" style="color:${col}">${EMOJI[card.type]} ${LABEL[card.type]}</div>
       <div class="hand-card-name">${card.name}</div>
       <div class="hand-card-desc">${card.desc}</div>
@@ -308,9 +337,10 @@ function renderGame() {
 function selectCard(cardId) {
   if (!state) return;
   const isMyTurn = state.players[state.currentPlayer]?.id === state.me.id;
-  if (!isMyTurn || state.phase!=='action') return;
-  const card = state.me.hand.find(c=>c.id===cardId);
+  const card = state.me.hand?.find(c=>c.id===cardId);
   if (!card) return;
+  if (!isMyTurn && card.type !== 'instant') return;
+  if (isMyTurn && state.phase !== 'action') return;
   selectedCard = selectedCard?.id===card.id ? null : card;
   renderGame();
 }
@@ -324,6 +354,18 @@ function confirmPlay() {
   else { socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:state.me.id}); selectedCard=null; }
 }
 
+function playInstant() {
+  const instants = state.me.hand?.filter(c=>c.type==='instant');
+  if (!instants || instants.length === 0) return;
+  if (instants.length === 1) {
+    socket.emit('action',{type:'play_instant',cardId:instants[0].id});
+    selectedCard = null;
+  } else {
+    selectedCard = instants[0];
+    renderGame();
+  }
+}
+
 function showTargetOverlay() {
   const opponents = state.players.filter(p=>p.id!==state.me.id);
   document.getElementById('targetTitle').textContent = `Cibler pour "${selectedCard.name}"`;
@@ -333,7 +375,11 @@ function showTargetOverlay() {
 
 function playOnTarget(tid) {
   document.getElementById('target-overlay').classList.remove('active');
-  socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:tid});
+  if (selectedCard.type === 'instant') {
+    socket.emit('action',{type:'play_instant',cardId:selectedCard.id});
+  } else {
+    socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:tid});
+  }
   selectedCard=null;
 }
 
@@ -345,7 +391,7 @@ function viewStable(playerId) {
   const p = state.players.find(pl=>pl.id===playerId);
   if (!p) return;
   document.getElementById('stableTitle').textContent = `Écurie de ${p.name}`;
-  const all = [...(p.stable||[]),(p.upgrades||[]),(p.downgrades||[])].flat();
+  const all = [...(p.stable||[]), ...(p.upgrades||[]), ...(p.downgrades||[])];
   document.getElementById('stableCards').innerHTML = all.map(card=>{
     const col=COLORS[card.type]||'#fff';
     return `<div class="stable-card" style="background:${col}18;border-color:${col}88">
