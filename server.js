@@ -277,6 +277,27 @@ io.on('connection', socket => {
       return;
     }
 
+    // Phase défausse collective (Rituel Sadique) — n'importe quel joueur ciblé peut défausser
+    if(type === 'choose_discard') {
+      if(room.phase !== 'discard_all') return;
+      if(!(room.pendingDiscards||[]).includes(playerId)) return;
+      const cardIdx = actor.hand.findIndex(c=>c.id===cardId);
+      if(cardIdx === -1) return;
+      const discarded = actor.hand.splice(cardIdx, 1)[0];
+      room.discard.push(discarded);
+      room.log.push(`${actor.name} défausse ${discarded.name}.`);
+      room.pendingDiscards = room.pendingDiscards.filter(id=>id!==playerId);
+      if(room.pendingDiscards.length === 0) {
+        if(cp.attacks.some(d=>d.effect==='skip_draw')) {
+          room.log.push(`${cp.name} ne peut pas piocher (Mauvais Sort).`);
+        } else {
+          if(room.deck.length > 0) { cp.hand.push(room.deck.shift()); room.log.push(`${cp.name} pioche une carte.`); }
+        }
+        room.phase = 'action';
+      }
+      broadcast(room); return;
+    }
+
     // À partir d'ici, seul le joueur courant peut agir
     if(cp.id !== playerId) return;
 
@@ -346,28 +367,6 @@ io.on('connection', socket => {
         room.phase = 'action';
       } else {
         if(room.deck.length > 0) { cp.hand.push(room.deck.shift()); room.log.push(`${cp.name} pioche une carte.`); }
-        room.phase = 'action';
-      }
-      broadcast(room); return;
-    }
-
-    // Phase défausse collective (Rituel Sadique)
-    if(type === 'choose_discard') {
-      if(room.phase !== 'discard_all') return;
-      if(!(room.pendingDiscards||[]).includes(playerId)) return;
-      const cardIdx = actor.hand.findIndex(c=>c.id===cardId);
-      if(cardIdx === -1) return;
-      const discarded = actor.hand.splice(cardIdx, 1)[0];
-      room.discard.push(discarded);
-      room.log.push(`${actor.name} défausse ${discarded.name}.`);
-      room.pendingDiscards = room.pendingDiscards.filter(id=>id!==playerId);
-      if(room.pendingDiscards.length === 0) {
-        // Tous ont défaussé, on continue avec la phase action (pioche normale)
-        if(cp.attacks.some(d=>d.effect==='skip_draw')) {
-          room.log.push(`${cp.name} ne peut pas piocher (Mauvais Sort).`);
-        } else {
-          if(room.deck.length > 0) { cp.hand.push(room.deck.shift()); room.log.push(`${cp.name} pioche une carte.`); }
-        }
         room.phase = 'action';
       }
       broadcast(room); return;
