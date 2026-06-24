@@ -114,7 +114,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
   <div class="sub">entre le code donné par ton ami</div>
   <div class="card-box">
     <div class="label">code de la salle</div>
-    <input id="codeInput" placeholder="ex: abcdef" maxlength="6" autocapitalize="none" autocorrect="off" autocomplete="off" style="letter-spacing:4px;font-size:20px;text-align:center;text-transform:uppercase">
+    <input id="codeInput" placeholder="ex: lapin" maxlength="10" autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" style="letter-spacing:2px;font-size:20px;text-align:center">
   </div>
   <button class="btn btn-purple" onclick="joinRoom()">rejoindre</button>
   <button class="btn btn-outline" onclick="show('screen-home')">← retour</button>
@@ -206,7 +206,7 @@ function getName() {
 }
 function goCreate(){const name=getName();if(!name)return;myName=name;socket.emit('create',{name});}
 function goJoin(){const name=getName();if(!name)return;myName=name;show('screen-join');}
-function joinRoom(){const code=document.getElementById('codeInput').value.trim().toUpperCase();if(code.length!==6){document.getElementById('join-error').textContent='Le code doit faire 6 lettres !';return;}socket.emit('join',{name:myName,roomId:code});}
+function joinRoom(){const code=document.getElementById('codeInput').value.trim().toLowerCase();if(code.length<3){document.getElementById('join-error').textContent='entre le code de la salle !';return;}socket.emit('join',{name:myName,roomId:code});}
 function startGame(){socket.emit('start');}
 function doAction(type,extra={}){socket.emit('action',{type,...extra});}
 function cancelCard(){selectedCard=null;renderGame();}

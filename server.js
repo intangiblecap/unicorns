@@ -187,7 +187,8 @@ function broadcast(room) {
   });
 }
 
-function genCode() { const chars='ABCDEFGHJKLMNPQRSTUVWXYZ'; let code=''; for(let i=0;i<6;i++) code+=chars[Math.floor(Math.random()*chars.length)]; return code; }
+const WORDS = ['lapin','licorne','nuage','etoile','gateau','soleil','jardin','mouton','bateau','pirate','dragon','flacon','bouton','carton','citron','melon','salon','ballon','facon','maison'];
+function genCode() { return WORDS[Math.floor(Math.random()*WORDS.length)]; }
 
 io.on('connection', socket => {
   socket.on('create', ({ name }) => {
