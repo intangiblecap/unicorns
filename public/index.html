@@ -320,8 +320,12 @@ function renderActions(isMyTurn, phase, me){
         html=`<button class="action-btn" style="border-color:#818cf8;color:#818cf8" onclick="doAction('skip_begin')">▶️ passer au tirage</button>`;
         const beginCards=(me.upgrades||[]).filter(c=>['begin_discard1_draw1','begin_discard2_steal_baby','draw_when_attacked'].includes(c.effect)&&!(state.usedBeginEffects||[]).includes(c.id));
         beginCards.forEach(c=>{
-          const req=c.effect==='begin_discard1_draw1'?1:c.effect==='begin_discard2_steal_baby'?2:0;
-          html+=`<button class="action-btn" style="border-color:#86efac;color:#86efac" onclick="startBeginEffect(${c.id},${req})">⬆️ ${c.name}</button>`;
+          if(c.effect==='draw_when_attacked'){
+            html+=`<button class="action-btn" style="border-color:#86efac;color:#86efac" onclick="startGlitterBomb(${c.id})">⬆️ ${c.name}</button>`;
+          } else {
+            const req=c.effect==='begin_discard1_draw1'?1:2;
+            html+=`<button class="action-btn" style="border-color:#86efac;color:#86efac" onclick="startBeginEffect(${c.id},${req})">⬆️ ${c.name}</button>`;
+          }
         });
       }
     } else if(phase==='draw'){
@@ -417,6 +421,18 @@ function handleCardClick(cardId){
 
   selectedCard=selectedCard?.id===card.id?null:card;
   renderGame();
+}
+
+// Glitter Bomb: pick a target then fire immediately
+function startGlitterBomb(upgradeCardId){
+  const opponents=state.players.filter(p=>p.id!==state.me.id);
+  document.getElementById('targetTitle').textContent='Glitter Bomb — cibler une écurie';
+  document.getElementById('targetButtons').innerHTML=opponents.map(p=>`<button class="target-btn" onclick="confirmGlitterBomb(${upgradeCardId},${p.id})">${p.name} · ${p.stableCount} 🦄</button>`).join('');
+  document.getElementById('target-overlay').classList.add('active');
+}
+function confirmGlitterBomb(upgradeCardId, targetPlayerId){
+  document.getElementById('target-overlay').classList.remove('active');
+  socket.emit('action',{type:'use_begin',cardId:upgradeCardId,targetPlayerId,discardIds:[]});
 }
 
 // Begin-of-turn effects
