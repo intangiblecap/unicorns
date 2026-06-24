@@ -89,7 +89,7 @@ function checkWin(room) {
   for(const p of room.players) {
     const unicorns = p.stable.filter(c=>['baby','basic','magic'].includes(c.type)).length;
     const bonus = p.upgrades.filter(c=>c.effect==='extra_point').length;
-    if(unicorns - bonus >= target) return p.id;
+    if(unicorns >= target - bonus) return p.id;
   }
   return null;
 }
