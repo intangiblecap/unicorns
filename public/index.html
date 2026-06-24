@@ -191,9 +191,9 @@ let myName = '';
 let beginEffectMode = null; // { upgradeCardId, requiredDiscards: 1|2 }
 let discardSelection = []; // card ids selected for begin-of-turn discard
 
-const COLORS = {basic:'#c4b5fd',magic:'#818cf8',baby:'#f9a8d4',upgrade:'#86efac',downgrade:'#fca5a5',spell:'#fcd34d',instant:'#fb923c'};
-const EMOJI = {basic:'🦄',magic:'✨',baby:'🐣',upgrade:'⬆️',downgrade:'⬇️',spell:'🔮',instant:'⚡'};
-const LABEL = {basic:'Licorne Basique',magic:'Licorne Magique',baby:'Bébé Licorne',upgrade:'Amélioration',downgrade:'Dégradation',spell:'Sort',instant:'Instant'};
+const COLORS = {basic:'#c4b5fd',magic:'#818cf8',baby:'#f9a8d4',upgrade:'#86efac',attack:'#fca5a5',spell:'#fcd34d',instant:'#fb923c'};
+const EMOJI = {basic:'🦄',magic:'✨',baby:'🐣',upgrade:'⬆️',attack:'⬇️',spell:'🔮',instant:'⚡'};
+const LABEL = {basic:'Licorne Standard',magic:'Licorne Magique',baby:'Bébé Licorne',upgrade:'Amélioration',attack:'Attaque',spell:'Magie',instant:'Illico'};
 
 function show(id) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -260,8 +260,8 @@ function renderGame(){
     <div class="player-chip ${p.isCurrentPlayer?'active-turn':''} ${p.id===me.id?'me':''}" onclick="viewStable(${p.id})">
       <div class="player-chip-name">${p.id===me.id?'★ ':''}${p.name}</div>
       <div class="player-chip-uni">${'🦄'.repeat(Math.min(p.stableCount,6))}</div>
-      <div class="player-chip-info">${p.stableCount}/7 · ${p.handCount} 🃏</div>
-      ${p.downgrades?.length?`<div style="font-size:9px;color:#fca5a5">${p.downgrades.map(d=>d.name).join(', ')}</div>`:''}
+      <div class="player-chip-info">${p.stableCount}/${state.winTarget} · ${p.handCount} 🃏</div>
+      ${p.attacks?.length?`<div style="font-size:9px;color:#fca5a5">${p.attacks.map(d=>d.name).join(', ')}</div>`:''}
     </div>`).join('');
 
   // Log
@@ -445,15 +445,21 @@ function playHue(){
 // Play a card
 function confirmPlay(){
   if(!selectedCard) return;
-  const needsTarget=selectedCard.type==='downgrade'||(selectedCard.type==='spell'&&!['draw2','draw3'].includes(selectedCard.effect));
-  if(needsTarget){showTargetOverlay();}
-  else{socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:state.me.id});selectedCard=null;}
+  // Attaque → adversaires seulement
+  // Amélioration → n'importe quel joueur (y compris soi-même)
+  // Magie avec cible → adversaires
+  // Licorne/Magie sans cible → soi-même automatiquement
+  const needsOpponentTarget = selectedCard.type==='attack' || (selectedCard.type==='spell'&&!['draw2','draw3','all_discard1'].includes(selectedCard.effect));
+  const needsAnyTarget = selectedCard.type==='upgrade';
+  if(needsOpponentTarget){ showTargetOverlay(false); }
+  else if(needsAnyTarget){ showTargetOverlay(true); }
+  else{ socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:state.me.id}); selectedCard=null; }
 }
 
-function showTargetOverlay(){
-  const opponents=state.players.filter(p=>p.id!==state.me.id);
+function showTargetOverlay(includeMe){
+  const players = includeMe ? state.players : state.players.filter(p=>p.id!==state.me.id);
   document.getElementById('targetTitle').textContent=`Cibler pour "${selectedCard.name}"`;
-  document.getElementById('targetButtons').innerHTML=opponents.map(p=>`<button class="target-btn" onclick="playOnTarget(${p.id})">${p.name} · ${p.stableCount} 🦄</button>`).join('');
+  document.getElementById('targetButtons').innerHTML=players.map(p=>`<button class="target-btn" onclick="playOnTarget(${p.id})">${p.id===state.me.id?'★ ':''} ${p.name} · ${p.stableCount} 🦄</button>`).join('');
   document.getElementById('target-overlay').classList.add('active');
 }
 function playOnTarget(tid){
@@ -467,7 +473,7 @@ function viewStable(playerId){
   const p=state.players.find(pl=>pl.id===playerId);
   if(!p)return;
   document.getElementById('stableTitle').textContent=`Écurie de ${p.name}`;
-  const all=[...(p.stable||[]),...(p.upgrades||[]),...(p.downgrades||[])];
+  const all=[...(p.stable||[]),...(p.upgrades||[]),...(p.attacks||[])];
   document.getElementById('stableCards').innerHTML=all.map(card=>{
     const col=COLORS[card.type]||'#fff';
     return `<div class="stable-card" style="background:${col}18;border-color:${col}88">
