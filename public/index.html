@@ -226,8 +226,8 @@ socket.on('state',(s)=>{
   state=s;
   if(s.winner!==null){
     const w=s.players.find(p=>p.id===s.winner);
-    document.getElementById('winnerName').textContent=`${w.name} a gagné !`;
-    document.getElementById('winnerDesc').textContent=`${w.stableCount} licornes dans l'écurie 🦄`;
+    document.getElementById('winnerName').textContent=`bravo ${w.name} !!!`;
+    document.getElementById('winnerDesc').textContent=`🦄 ${w.stableCount} licornes dans l'écurie — victoire !`;
     show('screen-win');return;
   }
   if(s.phase!=='begin_of_turn'){beginEffectMode=null;discardSelection=[];}
@@ -304,6 +304,18 @@ function renderActions(isMyTurn, phase, me){
   const actEl=document.getElementById('phaseActions');
   let html='';
 
+  // Phase Rituel Sadique — joueurs ciblés doivent défausser
+  if(phase==='discard_all'){
+    const mustDiscard=(state.pendingDiscards||[]).includes(me.id);
+    if(mustDiscard){
+      html=`<div class="discard-mode-banner">⚠️ Rituel Sadique — clique une carte dans ta main pour la défausser</div>`;
+    } else {
+      const waiting=(state.pendingDiscards||[]).map(id=>state.players.find(p=>p.id===id)?.name).filter(Boolean).join(', ');
+      html=`<div style="color:#6b7280;font-size:12px">en attente que ${waiting} défausse...</div>`;
+    }
+    actEl.innerHTML=html; return;
+  }
+
   if(isMyTurn){
     if(phase==='begin_of_turn'){
       if(beginEffectMode){
@@ -361,14 +373,17 @@ function renderHand(isMyTurn, phase, me){
     let borderCol=col+'44';
     let opacity=0.65;
 
-    if(beginEffectMode){
+    if(phase==='discard_all' && (state.pendingDiscards||[]).includes(me.id)){
+      // Rituel Sadique — toutes les cartes cliquables
+      opacity=1; borderCol='#fca5a5';
+    } else if(beginEffectMode){
       // In discard selection mode
       if(isDiscardSel){extraClass='discard-sel';borderCol='#fca5a5';opacity=1;}
       else{opacity=0.75;}
     } else {
       // Huuue !! cliquable si pendingCard existe pendant begin_of_turn (n'importe qui)
       const canNope = card.effect==='nope' && !!state.pendingCard && phase==='begin_of_turn';
-      const canPlay = (isMyTurn&&phase==='action') || canNope;
+      const canPlay = (isMyTurn&&phase==='action'&&card.type!=='instant') || canNope;
       if(isSelected){extraClass='selected';borderCol=col;opacity=1;}
       else if(canNope){extraClass='';borderCol='#fb923c';opacity=1;}
       else if(canPlay){opacity=1;borderCol=col+'66';}
@@ -387,6 +402,11 @@ function handleCardClick(cardId){
   const me=state.me;
   const card=me.hand?.find(c=>c.id===cardId);
   if(!card) return;
+
+  // Rituel Sadique — cliquer sur une carte pour la défausser
+  if(state.phase==='discard_all' && (state.pendingDiscards||[]).includes(me.id)){
+    socket.emit('action',{type:'choose_discard',cardId:card.id}); return;
+  }
 
   // Begin effect discard selection
   if(beginEffectMode){
@@ -457,9 +477,7 @@ function confirmPlay(){
   const needsOpponentTarget = selectedCard.type==='attack'
     || (selectedCard.type==='spell'&&!['draw2','draw3','all_discard1'].includes(selectedCard.effect))
     || (selectedCard.type==='magic'&&['destroy_on_enter','steal'].includes(selectedCard.effect));
-  const needsAnyTarget = selectedCard.type==='upgrade';
   if(needsOpponentTarget){ showTargetOverlay(false); }
-  else if(needsAnyTarget){ showTargetOverlay(true); }
   else{ socket.emit('action',{type:'play',cardId:selectedCard.id,targetPlayerId:state.me.id}); selectedCard=null; }
 }
 

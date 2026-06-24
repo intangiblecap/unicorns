@@ -103,6 +103,7 @@ function initGame(room) {
   room.phase = 'begin_of_turn';
   room.lastCard = null;
   room.pendingCard = null;
+  room.pendingDiscards = [];
   room.usedBeginEffects = [];
   room.log = [`La partie commence ! Tour de ${room.players[0].name}`];
   room.started = true;
@@ -152,7 +153,10 @@ function applyCardEffect(room, card, actor, target, targetCardId=null) {
     if(card.effect==='destroy'){ const pool=[...target.stable,...target.upgrades,...target.attacks]; if(pool.length>0){ const v=pickCard(pool,targetCardId); removeCard(target,v.id); room.discard.push(v); room.log.push(`${actor.name} détruit ${v.name} de ${target.name}.`); } }
     if(card.effect==='steal_spell'){ const u=target.stable.filter(c=>['baby','basic','magic'].includes(c.type)); if(u.length>0){ const v=pickCard(u,targetCardId); target.stable=target.stable.filter(c=>c.id!==v.id); actor.stable.push(v); room.log.push(`${actor.name} vole ${v.name} à ${target.name}.`); } }
     if(card.effect==='return'){ const u=target.stable.filter(c=>['basic','magic','baby'].includes(c.type)); if(u.length>0){ const v=pickCard(u,targetCardId); target.stable=target.stable.filter(c=>c.id!==v.id); room.nursery.push(v); room.log.push(`${actor.name} renvoie ${v.name} à la Nurserie.`); } }
-    if(card.effect==='all_discard1'){ room.players.filter(p=>p.id!==actor.id).forEach(p=>{ if(p.hand.length>0){ const d=p.hand.splice(Math.floor(Math.random()*p.hand.length),1)[0]; room.discard.push(d); room.log.push(`${p.name} défausse ${d.name}.`); } }); }
+    if(card.effect==='all_discard1'){
+      room.pendingDiscards = room.players.filter(p=>p.id!==actor.id && p.hand.length>0).map(p=>p.id);
+      if(room.pendingDiscards.length>0) room.log.push(`${actor.name} joue Rituel Sadique : chaque autre joueur doit défausser 1 carte.`);
+    }
   }
   return true;
 }
@@ -190,6 +194,7 @@ function getState(room, forPlayer) {
     phase: room.phase,
     lastCard: room.lastCard,
     pendingCard: room.pendingCard,
+    pendingDiscards: room.pendingDiscards || [],
     usedBeginEffects: room.usedBeginEffects || [],
     deckCount: room.deck.length,
     winTarget: winTarget(room),
@@ -211,7 +216,7 @@ io.on('connection', socket => {
   socket.on('create', ({ name }) => {
     let roomId;
     do { roomId = genCode(); } while (rooms[roomId]);
-    rooms[roomId] = { id: roomId, players: [], deck: [], nursery: [], discard: [], currentPlayer: 0, phase: 'begin_of_turn', log: [], started: false, winner: null, lastCard: null, pendingCard: null, usedBeginEffects: [] };
+    rooms[roomId] = { id: roomId, players: [], deck: [], nursery: [], discard: [], currentPlayer: 0, phase: 'begin_of_turn', log: [], started: false, winner: null, lastCard: null, pendingCard: null, pendingDiscards: [], usedBeginEffects: [] };
     const player = { id: 0, socketId: socket.id, name, hand: [], stable: [], upgrades: [], attacks: [] };
     rooms[roomId].players.push(player);
     socket.join(roomId);
@@ -223,7 +228,7 @@ io.on('connection', socket => {
 
   socket.on('join', ({ roomId, name }) => {
     if(!rooms[roomId]) {
-      rooms[roomId] = { id: roomId, players: [], deck: [], nursery: [], discard: [], currentPlayer: 0, phase: 'begin_of_turn', log: [], started: false, winner: null, lastCard: null, pendingCard: null, usedBeginEffects: [] };
+      rooms[roomId] = { id: roomId, players: [], deck: [], nursery: [], discard: [], currentPlayer: 0, phase: 'begin_of_turn', log: [], started: false, winner: null, lastCard: null, pendingCard: null, pendingDiscards: [], usedBeginEffects: [] };
     }
     const room = rooms[roomId];
     if(room.started) { socket.emit('error','Partie déjà commencée !'); return; }
@@ -330,12 +335,39 @@ io.on('connection', socket => {
       resolvePending(room);
       const w = checkWin(room);
       if(w !== null){ room.winner=w; room.log.push(`🏆 ${room.players[w].name} a gagné !`); broadcast(room); return; }
+      // Rituel Sadique : chaque joueur ciblé doit défausser
+      if(room.pendingDiscards && room.pendingDiscards.length > 0) {
+        room.phase = 'discard_all';
+        broadcast(room); return;
+      }
       // Mauvais Sort : pas de pioche
       if(cp.attacks.some(d=>d.effect==='skip_draw')) {
         room.log.push(`${cp.name} ne peut pas piocher (Mauvais Sort).`);
         room.phase = 'action';
       } else {
         if(room.deck.length > 0) { cp.hand.push(room.deck.shift()); room.log.push(`${cp.name} pioche une carte.`); }
+        room.phase = 'action';
+      }
+      broadcast(room); return;
+    }
+
+    // Phase défausse collective (Rituel Sadique)
+    if(type === 'choose_discard') {
+      if(room.phase !== 'discard_all') return;
+      if(!(room.pendingDiscards||[]).includes(playerId)) return;
+      const cardIdx = actor.hand.findIndex(c=>c.id===cardId);
+      if(cardIdx === -1) return;
+      const discarded = actor.hand.splice(cardIdx, 1)[0];
+      room.discard.push(discarded);
+      room.log.push(`${actor.name} défausse ${discarded.name}.`);
+      room.pendingDiscards = room.pendingDiscards.filter(id=>id!==playerId);
+      if(room.pendingDiscards.length === 0) {
+        // Tous ont défaussé, on continue avec la phase action (pioche normale)
+        if(cp.attacks.some(d=>d.effect==='skip_draw')) {
+          room.log.push(`${cp.name} ne peut pas piocher (Mauvais Sort).`);
+        } else {
+          if(room.deck.length > 0) { cp.hand.push(room.deck.shift()); room.log.push(`${cp.name} pioche une carte.`); }
+        }
         room.phase = 'action';
       }
       broadcast(room); return;
@@ -360,7 +392,9 @@ io.on('connection', socket => {
       if(room.phase !== 'action') return;
       const cardIdx = cp.hand.findIndex(c=>c.id===cardId);
       if(cardIdx === -1) return;
-      const card = cp.hand.splice(cardIdx, 1)[0];
+      const card = cp.hand[cardIdx];
+      if(card.type === 'instant') return; // Huuue !! ne se joue pas dans la phase action
+      cp.hand.splice(cardIdx, 1);
       const target = room.players.find(p=>p.id===targetPlayerId) || cp;
       room.lastCard = card;
       // La carte va en attente — le joueur suivant devra piocher pour la résoudre
