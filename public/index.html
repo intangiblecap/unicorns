@@ -213,14 +213,30 @@ function doAction(type,extra={}){socket.emit('action',{type,...extra});}
 function cancelCard(){selectedCard=null;renderGame();}
 function cancelTarget(){document.getElementById('target-overlay').classList.remove('active');}
 
-socket.on('created',({roomId,playerId})=>{myId=playerId;isHost=true;document.getElementById('generatedCode').textContent=roomId;show('screen-create');});
+socket.on('connect', () => {
+  const saved = localStorage.getItem('uu_session');
+  if(saved) { try { const s=JSON.parse(saved); if(s.token) socket.emit('reconnect_player',{token:s.token}); } catch(e){} }
+});
+socket.on('reconnected',({playerId,roomId,started})=>{
+  const saved = localStorage.getItem('uu_session');
+  if(saved) { try { const s=JSON.parse(saved); myId=playerId; myName=s.name||''; isHost=(playerId===0); } catch(e){} }
+  if(!started) { /* lobby events will follow */ }
+});
+socket.on('created',({roomId,playerId,token})=>{
+  myId=playerId;isHost=true;
+  localStorage.setItem('uu_session',JSON.stringify({token,roomId,name:myName}));
+  document.getElementById('generatedCode').textContent=roomId;show('screen-create');
+});
 socket.on('lobby',({players,roomId})=>{
   if(myId===null)myId=players[players.length-1]?.id;
   const html=players.map((p,i)=>`<div class="player-row"><span style="font-size:18px">${i===0?'👑':'🦄'}</span><span style="font-weight:700;color:#e2e8f0">${p.name}</span>${p.id===myId?'<span style="color:#818cf8;font-size:12px">(toi)</span>':''}</div>`).join('');
   if(isHost){document.getElementById('createPlayersList').innerHTML=html;document.getElementById('startBtn').disabled=players.length<2;show('screen-create');}
   else{document.getElementById('lobbyCode').textContent=roomId;document.getElementById('lobbyPlayersList').innerHTML=html;show('screen-lobby');}
 });
-socket.on('joined',({playerId})=>{myId=playerId;});
+socket.on('joined',({playerId,token})=>{
+  myId=playerId;
+  if(token) localStorage.setItem('uu_session',JSON.stringify({token,name:myName}));
+});
 socket.on('error',msg=>{document.getElementById('join-error').textContent=msg;document.getElementById('home-error').textContent=msg;});
 socket.on('state',(s)=>{
   state=s;

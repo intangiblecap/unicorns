@@ -217,11 +217,12 @@ io.on('connection', socket => {
     let roomId;
     do { roomId = genCode(); } while (rooms[roomId]);
     rooms[roomId] = { id: roomId, players: [], deck: [], nursery: [], discard: [], currentPlayer: 0, phase: 'begin_of_turn', log: [], started: false, winner: null, lastCard: null, pendingCard: null, pendingDiscards: [], usedBeginEffects: [] };
-    const player = { id: 0, socketId: socket.id, name, hand: [], stable: [], upgrades: [], attacks: [] };
+    const token = Math.random().toString(36).slice(2);
+    const player = { id: 0, socketId: socket.id, name, hand: [], stable: [], upgrades: [], attacks: [], token };
     rooms[roomId].players.push(player);
     socket.join(roomId);
     socket.data = { roomId, playerId: 0 };
-    socket.emit('created', { roomId, playerId: 0 });
+    socket.emit('created', { roomId, playerId: 0, token });
     socket.emit('joined', { playerId: 0 });
     io.to(roomId).emit('lobby', { players: rooms[roomId].players.map(p=>({id:p.id,name:p.name})), roomId, hostId: 0 });
   });
@@ -233,12 +234,34 @@ io.on('connection', socket => {
     const room = rooms[roomId];
     if(room.started) { socket.emit('error','Partie déjà commencée !'); return; }
     if(room.players.length >= 8) { socket.emit('error','Salle pleine !'); return; }
-    const player = { id: room.players.length, socketId: socket.id, name, hand: [], stable: [], upgrades: [], attacks: [] };
+    const token = Math.random().toString(36).slice(2);
+    const player = { id: room.players.length, socketId: socket.id, name, hand: [], stable: [], upgrades: [], attacks: [], token };
     room.players.push(player);
     socket.join(roomId);
     socket.data = { roomId, playerId: player.id };
     io.to(roomId).emit('lobby', { players: room.players.map(p=>({id:p.id,name:p.name})), roomId, hostId: 0 });
-    socket.emit('joined', { playerId: player.id });
+    socket.emit('joined', { playerId: player.id, token });
+  });
+
+  socket.on('reconnect_player', ({ token }) => {
+    for(const room of Object.values(rooms)) {
+      const player = room.players.find(p=>p.token===token);
+      if(!player) continue;
+      // Annuler le timer de déconnexion s'il existe
+      if(player._disconnectTimer) { clearTimeout(player._disconnectTimer); player._disconnectTimer = null; }
+      // Relink socket
+      player.socketId = socket.id;
+      socket.join(room.id);
+      socket.data = { roomId: room.id, playerId: player.id };
+      socket.emit('reconnected', { playerId: player.id, roomId: room.id, started: room.started });
+      if(room.started) {
+        io.to(player.socketId).emit('state', getState(room, player));
+      } else {
+        io.to(room.id).emit('lobby', { players: room.players.map(p=>({id:p.id,name:p.name})), roomId: room.id, hostId: 0 });
+      }
+      return;
+    }
+    // Token not found — nothing to do, client will show home screen
   });
 
   socket.on('start', () => {
@@ -421,12 +444,17 @@ io.on('connection', socket => {
     const { roomId } = socket.data || {};
     if(!roomId || !rooms[roomId]) return;
     const room = rooms[roomId];
-    room.players = room.players.filter(p=>p.socketId!==socket.id);
-    if(room.players.length===0) { delete rooms[roomId]; return; }
-    if(room.started) {
-      if(room.currentPlayer >= room.players.length) room.currentPlayer = 0;
-      broadcast(room);
-    }
+    const player = room.players.find(p=>p.socketId===socket.id);
+    if(!player) return;
+    // Donner 2 minutes pour se reconnecter avant de retirer le joueur
+    player._disconnectTimer = setTimeout(() => {
+      room.players = room.players.filter(p=>p.socketId!==socket.id);
+      if(room.players.length===0) { delete rooms[roomId]; return; }
+      if(room.started) {
+        if(room.currentPlayer >= room.players.length) room.currentPlayer = 0;
+        broadcast(room);
+      }
+    }, 2 * 60 * 1000);
   });
 });
 
