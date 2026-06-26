@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>🦄 Unstable Unicorns</title>
-<script src="/socket.io/socket.io.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:#0f0c29;color:#fff;font-family:sans-serif;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
@@ -180,7 +179,65 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #4c1d95;backgr
 <div id="instant-notif"></div>
 
 <script>
-const socket = io();
+// ─── WebSocket (remplace Socket.io) ──────────────────────────────────────────
+const WORDS = ['lapin','licorne','nuage','etoile','gateau','soleil','jardin','mouton','bateau','pirate','dragon','flacon','bouton','carton','citron','melon','salon','ballon','facon','maison'];
+let ws = null;
+let currentRoomId = null;
+
+function wsConnect(roomId, onOpen) {
+  if(ws) { try { ws.onclose=null; ws.close(); } catch(e){} }
+  currentRoomId = roomId;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws?room=${roomId}`);
+  ws.onopen = onOpen || (() => {});
+  ws.onmessage = (e) => { try { handleMessage(JSON.parse(e.data)); } catch(er){} };
+  ws.onclose = () => {
+    // Reconnexion automatique
+    setTimeout(() => {
+      if(!currentRoomId) return;
+      wsConnect(currentRoomId, () => {
+        const saved = localStorage.getItem('uu_session');
+        if(saved) { try { const s=JSON.parse(saved); if(s.token) emit('reconnect_player',{token:s.token}); } catch(e){} }
+      });
+    }, 2000);
+  };
+}
+
+function emit(type, extra={}) {
+  if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type,...extra}));
+}
+
+function handleMessage(data) {
+  const { type } = data;
+  if(type === 'error') { document.getElementById('join-error').textContent=data.message; document.getElementById('home-error').textContent=data.message; return; }
+  if(type === 'created') {
+    myId=data.playerId; isHost=true;
+    localStorage.setItem('uu_session', JSON.stringify({token:data.token, roomId:currentRoomId, name:myName}));
+    document.getElementById('generatedCode').textContent=currentRoomId;
+    show('screen-create'); return;
+  }
+  if(type === 'joined') {
+    myId=data.playerId;
+    if(data.token) localStorage.setItem('uu_session', JSON.stringify({token:data.token, roomId:currentRoomId, name:myName}));
+    return;
+  }
+  if(type === 'reconnected') {
+    const saved = localStorage.getItem('uu_session');
+    if(saved) { try { const s=JSON.parse(saved); myId=data.playerId; myName=s.name||''; isHost=(data.playerId===0); } catch(e){} }
+    return;
+  }
+  if(type === 'lobby') {
+    const {players, roomId} = data;
+    if(myId===null) myId=players[players.length-1]?.id;
+    const html=players.map((p,i)=>`<div class="player-row"><span style="font-size:18px">${i===0?'👑':'🦄'}</span><span style="font-weight:700;color:#e2e8f0">${p.name}</span>${p.id===myId?'<span style="color:#818cf8;font-size:12px">(toi)</span>':''}</div>`).join('');
+    if(isHost){document.getElementById('createPlayersList').innerHTML=html;document.getElementById('startBtn').disabled=players.length<2;show('screen-create');}
+    else{document.getElementById('lobbyCode').textContent=roomId;document.getElementById('lobbyPlayersList').innerHTML=html;show('screen-lobby');}
+    return;
+  }
+  if(type === 'state') { handleState(data); return; }
+}
+
+// ─── Logique de l'app ────────────────────────────────────────────────────────
 let state = null;
 let myId = null;
 let isHost = false;
@@ -188,7 +245,6 @@ let selectedCard = null;
 let myName = '';
 let beginEffectMode = null;
 let discardSelection = [];
-// Pour la sélection de cible en 2 étapes (joueur puis carte)
 let _pendingPlayCardId = null;
 let _pendingPlayTargetId = null;
 
@@ -205,40 +261,35 @@ function getName() {
   if(!n){document.getElementById('home-error').textContent='Entre ton prénom !';return null;}
   return n;
 }
-function goCreate(){const name=getName();if(!name)return;myName=name;socket.emit('create',{name});}
+function goCreate(){
+  const name=getName(); if(!name)return; myName=name;
+  const code = WORDS[Math.floor(Math.random()*WORDS.length)] + Math.floor(Math.random()*90+10);
+  wsConnect(code, () => emit('create',{name}));
+}
 function goJoin(){const name=getName();if(!name)return;myName=name;show('screen-join');}
-function joinRoom(){const code=document.getElementById('codeInput').value.trim().toLowerCase();if(code.length<3){document.getElementById('join-error').textContent='entre le code de la salle !';return;}socket.emit('join',{name:myName,roomId:code});}
-function startGame(){socket.emit('start');}
-function doAction(type,extra={}){socket.emit('action',{type,...extra});}
+function joinRoom(){
+  const code=document.getElementById('codeInput').value.trim().toLowerCase();
+  if(code.length<3){document.getElementById('join-error').textContent='entre le code de la salle !';return;}
+  wsConnect(code, () => emit('join',{name:myName}));
+}
+function startGame(){emit('start');}
+function doAction(type,extra={}){emit(type,extra);}
 function cancelCard(){selectedCard=null;renderGame();}
 function cancelTarget(){document.getElementById('target-overlay').classList.remove('active');}
 
-socket.on('connect', () => {
+// Reconnexion au chargement si session sauvegardée
+window.addEventListener('load', () => {
   const saved = localStorage.getItem('uu_session');
-  if(saved) { try { const s=JSON.parse(saved); if(s.token) socket.emit('reconnect_player',{token:s.token}); } catch(e){} }
+  if(saved) {
+    try {
+      const s = JSON.parse(saved);
+      if(s.token && s.roomId) {
+        wsConnect(s.roomId, () => emit('reconnect_player',{token:s.token}));
+      }
+    } catch(e) {}
+  }
 });
-socket.on('reconnected',({playerId,roomId,started})=>{
-  const saved = localStorage.getItem('uu_session');
-  if(saved) { try { const s=JSON.parse(saved); myId=playerId; myName=s.name||''; isHost=(playerId===0); } catch(e){} }
-  if(!started) { /* lobby events will follow */ }
-});
-socket.on('created',({roomId,playerId,token})=>{
-  myId=playerId;isHost=true;
-  localStorage.setItem('uu_session',JSON.stringify({token,roomId,name:myName}));
-  document.getElementById('generatedCode').textContent=roomId;show('screen-create');
-});
-socket.on('lobby',({players,roomId})=>{
-  if(myId===null)myId=players[players.length-1]?.id;
-  const html=players.map((p,i)=>`<div class="player-row"><span style="font-size:18px">${i===0?'👑':'🦄'}</span><span style="font-weight:700;color:#e2e8f0">${p.name}</span>${p.id===myId?'<span style="color:#818cf8;font-size:12px">(toi)</span>':''}</div>`).join('');
-  if(isHost){document.getElementById('createPlayersList').innerHTML=html;document.getElementById('startBtn').disabled=players.length<2;show('screen-create');}
-  else{document.getElementById('lobbyCode').textContent=roomId;document.getElementById('lobbyPlayersList').innerHTML=html;show('screen-lobby');}
-});
-socket.on('joined',({playerId,token})=>{
-  myId=playerId;
-  if(token) localStorage.setItem('uu_session',JSON.stringify({token,name:myName}));
-});
-socket.on('error',msg=>{document.getElementById('join-error').textContent=msg;document.getElementById('home-error').textContent=msg;});
-socket.on('state',(s)=>{
+function handleState(s){
   state=s;
   if(s.winner!==null){
     const w=s.players.find(p=>p.id===s.winner);
@@ -248,7 +299,7 @@ socket.on('state',(s)=>{
   }
   if(s.phase!=='begin_of_turn'){beginEffectMode=null;discardSelection=[];}
   show('screen-game');renderGame();
-});
+}
 
 function cardHTML(card,extra='',opacityVal=1){
   const col=COLORS[card.type]||'#fff';
