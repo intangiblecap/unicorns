@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InvestSim – Simulateur d'investissement</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { background: #f3f4f6; margin: 0; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+        PieChart, Pie, Cell, AreaChart, Area, ResponsiveContainer } = Recharts;
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'investisseur_portfolio';
+const INITIAL_CAPITAL = 10000;
+
+const SECTORS = {
+  TECH:    { label: 'Tech',        color: '#3b82f6' },
+  FINANCE: { label: 'Finance',     color: '#22c55e' },
+  LUXE:    { label: 'Luxe & Conso',color: '#f59e0b' },
+  ETF:     { label: 'ETF',         color: '#8b5cf6' },
+};
+
+const ALL_STOCKS = [
+  { symbol:'AAPL',  name:'Apple',       sector:'TECH',    annualReturn:0.12, volatility:0.15, price:185,  badge:null },
+  { symbol:'MSFT',  name:'Microsoft',   sector:'TECH',    annualReturn:0.10, volatility:0.14, price:420,  badge:null },
+  { symbol:'GOOGL', name:'Google',      sector:'TECH',    annualReturn:0.11, volatility:0.16, price:175,  badge:null },
+  { symbol:'AMZN',  name:'Amazon',      sector:'TECH',    annualReturn:0.13, volatility:0.18, price:195,  badge:null },
+  { symbol:'TSLA',  name:'Tesla',       sector:'TECH',    annualReturn:0.25, volatility:0.45, price:250,  badge:'⚡ Volatile' },
+  { symbol:'NVDA',  name:'Nvidia',      sector:'TECH',    annualReturn:0.20, volatility:0.35, price:875,  badge:'🔥 Hot' },
+  { symbol:'JPM',   name:'JPMorgan',    sector:'FINANCE', annualReturn:0.08, volatility:0.12, price:210,  badge:null },
+  { symbol:'V',     name:'Visa',        sector:'FINANCE', annualReturn:0.12, volatility:0.11, price:280,  badge:null },
+  { symbol:'PYPL',  name:'PayPal',      sector:'FINANCE', annualReturn:0.09, volatility:0.20, price:75,   badge:null },
+  { symbol:'MC',    name:'LVMH',        sector:'LUXE',    annualReturn:0.11, volatility:0.13, price:650,  badge:null },
+  { symbol:'NSRGY', name:'Nestlé',      sector:'LUXE',    annualReturn:0.07, volatility:0.10, price:95,   badge:null },
+  { symbol:'UNA',   name:'Unilever',    sector:'LUXE',    annualReturn:0.06, volatility:0.09, price:45,   badge:null },
+  { symbol:'MSCIW', name:'MSCI World',  sector:'ETF',     annualReturn:0.08, volatility:0.12, price:100,  badge:'🌍 Diversifié' },
+  { symbol:'SP500', name:'S&P 500',     sector:'ETF',     annualReturn:0.10, volatility:0.14, price:100,  badge:null },
+  { symbol:'CAC40', name:'CAC 40',      sector:'ETF',     annualReturn:0.07, volatility:0.13, price:100,  badge:null },
+  { symbol:'NDX',   name:'NASDAQ 100',  sector:'ETF',     annualReturn:0.12, volatility:0.18, price:100,  badge:null },
+];
+
+const LEARN_CARDS = [
+  { title:'Diversification', icon:'🌈', colorBg:'bg-blue-50',   colorBorder:'border-blue-200',   iconBg:'bg-blue-100',
+    summary:'Pourquoi ne pas tout mettre dans Tesla ?',
+    content:'La diversification consiste à répartir votre capital entre plusieurs actifs pour réduire le risque. Si Tesla chute de 50 % mais que vous avez aussi du MSCI World et du Nestlé, l\'impact global est limité. Règle d\'or : ne jamais mettre tous ses œufs dans le même panier. Un portefeuille bien diversifié couvre plusieurs secteurs, zones géographiques et types d\'actifs.' },
+  { title:'Rendement',       icon:'📈', colorBg:'bg-green-50',  colorBorder:'border-green-200',  iconBg:'bg-green-100',
+    summary:'D\'où vient le +8 % par an ?',
+    content:'Le rendement d\'une action provient de deux sources : les dividendes (une part des bénéfices distribués) et la plus-value (hausse du cours). Sur le long terme, le marché boursier mondial a historiquement rapporté 7-10 % par an. Mais attention : ces rendements passés ne garantissent pas les rendements futurs !' },
+  { title:'Volatilité',      icon:'🎢', colorBg:'bg-red-50',    colorBorder:'border-red-200',    iconBg:'bg-red-100',
+    summary:'Pourquoi Tesla bouge plus que Google ?',
+    content:'La volatilité mesure l\'amplitude des variations de prix. Tesla peut gagner ou perdre 10 % en une journée, tandis que Nestlé bouge rarement de plus de 2 %. Une forte volatilité signifie un potentiel de gains importants, mais aussi de pertes importantes. Les ETF ont une faible volatilité car ils regroupent des centaines d\'entreprises.' },
+  { title:'Horizon de temps',icon:'🕰️', colorBg:'bg-purple-50', colorBorder:'border-purple-200', iconBg:'bg-purple-100',
+    summary:'Court vs long terme',
+    content:'Plus votre horizon est long, plus vous pouvez vous permettre de la volatilité. Sur 1 mois, les marchés peuvent baisser fortement. Sur 10 ans, il est très rare de perdre de l\'argent sur un indice diversifié. Règle générale : n\'investissez en bourse que l\'argent dont vous n\'aurez pas besoin avant 5 ans minimum.' },
+  { title:'Intérêts composés',icon:'⚡', colorBg:'bg-yellow-50', colorBorder:'border-yellow-200', iconBg:'bg-yellow-100',
+    summary:'Pourquoi commencer tôt est essentiel',
+    content:'1 000 € investis à 8 %/an pendant 30 ans = 10 062 €. Mais sur 20 ans seulement = 4 661 €. Vos gains génèrent eux-mêmes des gains : c\'est la "8ᵉ merveille du monde" selon Einstein. Commencer à investir à 25 ans plutôt qu\'à 35 peut doubler votre patrimoine final.' },
+  { title:'Les frais',        icon:'💸', colorBg:'bg-orange-50', colorBorder:'border-orange-200', iconBg:'bg-orange-100',
+    summary:'Pourquoi les commissions mangent vos gains',
+    content:'Des frais de 2 %/an semblent anodins. Mais sur 20 ans à 8 % de rendement brut : sans frais → 46 610 €, avec 2 % de frais → 29 178 €. Soit 17 000 € perdus ! Préférez les ETF à faibles frais (0,1-0,5 %/an). Chaque dixième de pourcent compte sur le long terme.' },
+];
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+
+function fmtEur(n) {
+  return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:2 }).format(n);
+}
+function fmtNum(n, d = 2) {
+  return new Intl.NumberFormat('fr-FR', { minimumFractionDigits:d, maximumFractionDigits:d }).format(n);
+}
+function fmtPct(n) {
+  return (n >= 0 ? '+' : '') + fmtNum(n * 100, 2) + ' %';
+}
+
+function getCurrentPrice(position, seed) {
+  const years = (Date.now() - position.purchaseDate) / (365.25 * 24 * 3600 * 1000);
+  const growth = position.initialPrice * Math.pow(1 + position.annualReturn, years);
+  const rnd = ((seed * 9301 + 49297) % 233280) / 233280;
+  const volatilityFactor = 1 + (rnd * 0.04 - 0.02);
+  return Math.max(growth * volatilityFactor, 0.01);
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return { cash: INITIAL_CAPITAL, positions: [], history: [], nextId: 1 };
+}
+
+function saveState(s) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
+
+// ─── METRIC CARD ──────────────────────────────────────────────────────────────
+
+function MetricCard({ icon, label, value, sub, positive }) {
+  const valueColor = positive === undefined ? 'text-gray-900'
+    : positive ? 'text-green-600' : 'text-red-500';
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">{icon} {label}</div>
+      <div className={`text-2xl font-bold ${valueColor} truncate`}>{value}</div>
+      {sub && <div className={`text-sm mt-0.5 ${valueColor}`}>{sub}</div>}
+    </div>
+  );
+}
+
+// ─── PERFORMANCE CHART ────────────────────────────────────────────────────────
+
+function PerformanceChart({ history, currentValue }) {
+  const data = useMemo(() => {
+    const pts = [...history, { date: Date.now(), value: currentValue }];
+    return pts.slice(-60).map(p => ({
+      t: new Date(p.date).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
+      v: Math.round(p.value),
+    }));
+  }, [history, currentValue]);
+
+  if (data.length < 2) return (
+    <div className="flex items-center justify-center h-36 text-gray-400 text-sm text-center px-4">
+      Les données apparaîtront après la première mise à jour de marché (60 s)
+    </div>
+  );
+
+  const up = data[data.length-1].v >= data[0].v;
+  const stroke = up ? '#22c55e' : '#ef4444';
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <AreaChart data={data} margin={{ top:5, right:5, left:0, bottom:5 }}>
+        <defs>
+          <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%"  stopColor={stroke} stopOpacity={0.2}/>
+            <stop offset="95%" stopColor={stroke} stopOpacity={0}/>
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+        <XAxis dataKey="t" tick={{ fontSize:10 }} interval="preserveStartEnd"/>
+        <YAxis tick={{ fontSize:10 }} tickFormatter={v => fmtNum(v,0)+'€'} width={72}/>
+        <Tooltip formatter={v => [fmtEur(v), 'Portefeuille']}/>
+        <Area type="monotone" dataKey="v" stroke={stroke} fill="url(#pg)" strokeWidth={2} dot={false}/>
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ─── PIE CHART ────────────────────────────────────────────────────────────────
+
+function SectorPie({ positions, prices }) {
+  const data = useMemo(() => {
+    const byS = {};
+    positions.forEach(p => {
+      const val = p.shares * (prices[p.id] || p.initialPrice);
+      byS[p.sector] = (byS[p.sector] || 0) + val;
+    });
+    return Object.entries(byS).map(([s, val]) => ({
+      name: SECTORS[s]?.label || s,
+      value: Math.round(val),
+      color: SECTORS[s]?.color || '#999',
+    }));
+  }, [positions, prices]);
+
+  if (!data.length) return (
+    <div className="flex items-center justify-center h-36 text-gray-400 text-sm">
+      Achetez des actions pour voir l'allocation
+    </div>
+  );
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <PieChart>
+        <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={3}>
+          {data.map((e, i) => <Cell key={i} fill={e.color}/>)}
+        </Pie>
+        <Tooltip formatter={v => fmtEur(v)}/>
+        <Legend iconSize={10} wrapperStyle={{ fontSize:12 }}/>
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+
+function Dashboard({ portfolio, prices }) {
+  const { cash, positions, history } = portfolio;
+
+  const stockValue = useMemo(
+    () => positions.reduce((s, p) => s + p.shares * (prices[p.id] || p.initialPrice), 0),
+    [positions, prices]
+  );
+  const totalValue  = cash + stockValue;
+  const totalGain   = totalValue - INITIAL_CAPITAL;
+  const totalGainPct = totalGain / INITIAL_CAPITAL;
+  const nbParts     = positions.reduce((s, p) => s + p.shares, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard icon="💰" label="Portefeuille" value={fmtEur(totalValue)}
+          sub={totalGain >= 0 ? `+${fmtEur(totalGain)}` : fmtEur(totalGain)}
+          positive={totalGain >= 0}/>
+        <MetricCard icon="📊" label="Gain / Perte" value={fmtPct(totalGainPct)}
+          positive={totalGain >= 0}/>
+        <MetricCard icon="💵" label="Liquidités" value={fmtEur(cash)}/>
+        <MetricCard icon="🎯" label="Positions" value={positions.length}
+          sub={`${fmtNum(nbParts,4)} parts`}/>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <h3 className="font-semibold text-gray-700 mb-3">Performance du portefeuille</h3>
+          <PerformanceChart history={history} currentValue={totalValue}/>
+        </div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <h3 className="font-semibold text-gray-700 mb-3">Allocation par secteur</h3>
+          <SectorPie positions={positions} prices={prices}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BUY MODAL ────────────────────────────────────────────────────────────────
+
+function BuyModal({ stock, cash, onClose, onConfirm }) {
+  const [amount, setAmount] = useState('');
+  const [error, setError]   = useState('');
+  const [done, setDone]     = useState(false);
+
+  const amt    = parseFloat(amount) || 0;
+  const shares = amt > 0 ? amt / stock.price : 0;
+
+  function submit() {
+    if (!amt || amt <= 0)   return setError('Entrez un montant valide.');
+    if (amt > cash)          return setError('Liquidités insuffisantes.');
+    if (amt < 1)             return setError('Montant minimum : 1 €.');
+    setDone(true);
+    setTimeout(() => { onConfirm(stock, amt); onClose(); }, 900);
+  }
+
+  function pct(p) { setAmount(String(Math.floor(cash * p / 100))); setError(''); }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className={`bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transition-transform duration-300 ${done ? 'scale-105' : 'scale-100'}`}>
+        {done ? (
+          <div className="text-center py-6">
+            <div className="text-6xl mb-3">🎉</div>
+            <div className="text-xl font-bold text-green-600">Achat confirmé !</div>
+            <div className="text-gray-500 mt-1">{fmtNum(shares,4)} parts de {stock.name}</div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{stock.name} ({stock.symbol})</h3>
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: SECTORS[stock.sector]?.color + '22', color: SECTORS[stock.sector]?.color }}>
+                  {SECTORS[stock.sector]?.label}
+                </span>
+              </div>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Prix unitaire</span><span className="font-semibold">{fmtEur(stock.price)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Rendement moyen</span><span className="font-semibold text-green-600">+{(stock.annualReturn*100).toFixed(0)} %/an</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Volatilité</span><span className="font-semibold">{(stock.volatility*100).toFixed(0)} %</span></div>
+              <div className="flex justify-between border-t pt-2"><span className="text-gray-500">Liquidités disponibles</span><span className="font-semibold">{fmtEur(cash)}</span></div>
+            </div>
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">Montant à investir (€)</label>
+            <input type="number" value={amount} min="1" max={cash}
+              onChange={e => { setAmount(e.target.value); setError(''); }}
+              onKeyDown={e => e.key === 'Enter' && submit()}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+              placeholder="Ex: 500"/>
+
+            {amt > 0 && !error && (
+              <div className="bg-blue-50 rounded-xl p-3 mb-3 text-sm flex justify-between">
+                <span className="text-blue-600">Parts achetées</span>
+                <span className="font-bold text-blue-700">{fmtNum(shares, 4)}</span>
+              </div>
+            )}
+            {error && <div className="text-red-500 text-sm mb-3">{error}</div>}
+
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {[25,50,75,100].map(p => (
+                <button key={p} onClick={() => pct(p)}
+                  className="text-sm bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg py-2 font-medium transition-colors">
+                  {p} %
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={onClose}
+                className="border border-gray-300 rounded-xl py-3 font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+                Annuler
+              </button>
+              <button onClick={submit}
+                className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-3 font-bold transition-colors">
+                Acheter
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── BUY STOCK ────────────────────────────────────────────────────────────────
+
+function BuyStock({ portfolio, onBuy }) {
+  const [activeTab, setActiveTab] = useState('TECH');
+  const [selected, setSelected]   = useState(null);
+
+  const tabs = [
+    { key:'TECH',    label:'💻 Tech' },
+    { key:'FINANCE', label:'🏦 Finance' },
+    { key:'LUXE',    label:'💎 Luxe & Conso' },
+    { key:'ETF',     label:'🌍 ETF' },
+  ];
+
+  const stocks = ALL_STOCKS.filter(s => s.sector === activeTab);
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)}
+            className={`px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-colors flex-shrink-0
+              ${activeTab === t.key ? 'bg-blue-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {stocks.map(stock => (
+          <div key={stock.symbol} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:border-blue-200 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-gray-900">{stock.symbol}</span>
+                  <span className="text-sm text-gray-500">{stock.name}</span>
+                  {stock.badge && (
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                      {stock.badge}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-xl font-bold text-gray-900">{fmtEur(stock.price)}</span>
+                  <span className="text-sm text-green-600 font-medium">+{(stock.annualReturn*100).toFixed(0)} %/an</span>
+                  <span className="text-xs text-gray-400">vol. {(stock.volatility*100).toFixed(0)} %</span>
+                </div>
+              </div>
+              <button onClick={() => setSelected(stock)}
+                className="ml-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm whitespace-nowrap flex-shrink-0">
+                Investir
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {selected && (
+        <BuyModal stock={selected} cash={portfolio.cash}
+          onClose={() => setSelected(null)} onConfirm={onBuy}/>
+      )}
+    </div>
+  );
+}
+
+// ─── PORTFOLIO ────────────────────────────────────────────────────────────────
+
+function PositionRow({ pos, price, onSell }) {
+  const [confirm, setConfirm] = useState(false);
+  const currentValue = pos.shares * price;
+  const gain = currentValue - pos.amountInvested;
+  const gainPct = gain / pos.amountInvested;
+  const up = gain >= 0;
+
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <span className="font-bold text-gray-900">{pos.symbol}</span>
+            <span className="text-sm text-gray-500">{pos.name}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: SECTORS[pos.sector]?.color + '22', color: SECTORS[pos.sector]?.color }}>
+              {SECTORS[pos.sector]?.label}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <div className="text-xs text-gray-400 mb-0.5">Investi</div>
+              <div className="font-semibold text-gray-900 text-sm">{fmtEur(pos.amountInvested)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-400 mb-0.5">Parts</div>
+              <div className="font-semibold text-gray-900 text-sm">{fmtNum(pos.shares,4)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-400 mb-0.5">Valeur actuelle</div>
+              <div className="font-semibold text-gray-900 text-sm">{fmtEur(currentValue)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-400 mb-0.5">Gain / Perte</div>
+              <div className={`font-bold text-sm ${up ? 'text-green-600' : 'text-red-500'}`}>
+                {up ? '+' : ''}{fmtEur(gain)}<br/>
+                <span className="font-medium text-xs">{fmtPct(gainPct)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex-shrink-0">
+          {confirm ? (
+            <div className="flex flex-col gap-1.5">
+              <button onClick={() => { onSell(pos.id); setConfirm(false); }}
+                className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap">
+                Confirmer
+              </button>
+              <button onClick={() => setConfirm(false)}
+                className="text-xs border border-gray-300 px-3 py-1.5 rounded-lg text-gray-600 whitespace-nowrap">
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirm(true)}
+              className="text-gray-300 hover:text-red-500 transition-colors p-1 text-xl" title="Vendre">
+              🗑️
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Portfolio({ portfolio, prices, onSell }) {
+  const { positions, cash } = portfolio;
+
+  if (!positions.length) return (
+    <div className="text-center py-24 text-gray-400">
+      <div className="text-6xl mb-4">📭</div>
+      <div className="text-lg font-medium text-gray-500">Portefeuille vide</div>
+      <div className="text-sm mt-1">Allez dans "Acheter" pour votre premier investissement !</div>
+    </div>
+  );
+
+  const totalCurrent  = positions.reduce((s,p) => s + p.shares * (prices[p.id] || p.initialPrice), 0);
+  const totalInvested = positions.reduce((s,p) => s + p.amountInvested, 0);
+  const totalGain     = totalCurrent - totalInvested;
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+        <div><div className="text-gray-400 mb-1">Total investi</div><div className="font-bold text-lg text-gray-900">{fmtEur(totalInvested)}</div></div>
+        <div><div className="text-gray-400 mb-1">Valeur marchande</div><div className="font-bold text-lg text-gray-900">{fmtEur(totalCurrent)}</div></div>
+        <div><div className="text-gray-400 mb-1">Gain / Perte</div><div className={`font-bold text-lg ${totalGain >= 0 ? 'text-green-600' : 'text-red-500'}`}>{totalGain >= 0 ? '+' : ''}{fmtEur(totalGain)}</div></div>
+        <div><div className="text-gray-400 mb-1">Liquidités</div><div className="font-bold text-lg text-gray-900">{fmtEur(cash)}</div></div>
+      </div>
+      {positions.map(p => (
+        <PositionRow key={p.id} pos={p} price={prices[p.id] || p.initialPrice} onSell={onSell}/>
+      ))}
+    </div>
+  );
+}
+
+// ─── PROJECTIONS ──────────────────────────────────────────────────────────────
+
+function Projections({ portfolio, prices }) {
+  const { positions } = portfolio;
+
+  const data = useMemo(() => {
+    if (!positions.length) return [];
+    const base = positions.reduce((s,p) => s + p.shares * (prices[p.id] || p.initialPrice), 0);
+    const wAvg = positions.reduce((s,p) => s + p.annualReturn * p.shares * (prices[p.id] || p.initialPrice), 0) / (base || 1);
+    return [0,1,2,3,5,7,10].map(y => ({
+      label: y === 0 ? 'Auj.' : `${y} an${y > 1 ? 's' : ''}`,
+      pessimiste: Math.round(base * Math.pow(1 + wAvg - 0.05, y)),
+      moyen:      Math.round(base * Math.pow(1 + wAvg,       y)),
+      optimiste:  Math.round(base * Math.pow(1 + wAvg + 0.05, y)),
+    }));
+  }, [positions, prices]);
+
+  if (!data.length) return (
+    <div className="text-center py-24 text-gray-400">
+      <div className="text-6xl mb-4">🔮</div>
+      <div className="text-lg font-medium text-gray-500">Achetez des actions pour voir vos projections</div>
+    </div>
+  );
+
+  const last = data[data.length - 1];
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h3 className="font-bold text-gray-900 text-lg mb-1">Projection sur 10 ans</h3>
+        <p className="text-sm text-gray-500 mb-5">Basé sur le rendement moyen pondéré de votre portefeuille. Trois scénarios :</p>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data} margin={{ top:5, right:20, left:10, bottom:5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+            <XAxis dataKey="label" tick={{ fontSize:12 }}/>
+            <YAxis tick={{ fontSize:11 }} tickFormatter={v => fmtNum(v,0)+'€'} width={82}/>
+            <Tooltip formatter={(v,n) => [fmtEur(v), n.charAt(0).toUpperCase()+n.slice(1)]}/>
+            <Legend/>
+            <Line type="monotone" dataKey="pessimiste" stroke="#ef4444" strokeWidth={2} strokeDasharray="6 3" dot={{ r:4 }}/>
+            <Line type="monotone" dataKey="moyen"      stroke="#3b82f6" strokeWidth={3} dot={{ r:5 }}/>
+            <Line type="monotone" dataKey="optimiste"  stroke="#22c55e" strokeWidth={2} strokeDasharray="6 3" dot={{ r:4 }}/>
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { key:'pessimiste', label:'Pessimiste', sub:'-5 % vs moy.', color:'#ef4444', bg:'#fef2f2' },
+          { key:'moyen',      label:'Moyen',      sub:'Rendement actuel', color:'#3b82f6', bg:'#eff6ff' },
+          { key:'optimiste',  label:'Optimiste',  sub:'+5 % vs moy.', color:'#22c55e', bg:'#f0fdf4' },
+        ].map(s => (
+          <div key={s.key} className="rounded-2xl p-4 text-center shadow-sm border border-gray-100"
+            style={{ background: s.bg }}>
+            <div className="text-xs text-gray-500 font-medium">{s.label}</div>
+            <div className="text-xs text-gray-400 mb-2">{s.sub}</div>
+            <div className="font-bold text-xl" style={{ color:s.color }}>{fmtEur(last[s.key])}</div>
+            <div className="text-xs text-gray-400 mt-1">dans 10 ans</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── LEARN ────────────────────────────────────────────────────────────────────
+
+function LearnCard({ card }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div onClick={() => setOpen(!open)}
+      className={`rounded-2xl border-2 p-5 cursor-pointer transition-all duration-200 select-none
+        ${card.colorBg} ${card.colorBorder} ${open ? 'shadow-md' : 'hover:shadow-sm'}`}>
+      <div className="flex items-center gap-3">
+        <div className={`${card.iconBg} rounded-xl w-12 h-12 flex items-center justify-center text-2xl flex-shrink-0`}>
+          {card.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-gray-900">{card.title}</div>
+          <div className="text-sm text-gray-500 truncate">{card.summary}</div>
+        </div>
+        <span className="text-gray-400 text-sm flex-shrink-0">{open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div className="mt-4 text-sm text-gray-700 leading-relaxed border-t border-black/5 pt-4">
+          {card.content}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Learn() {
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <h2 className="font-bold text-gray-900 text-xl">Apprendre à investir</h2>
+        <p className="text-sm text-gray-500 mt-1">6 concepts essentiels pour tout investisseur débutant. Cliquez pour développer.</p>
+      </div>
+      {LEARN_CARDS.map((c, i) => <LearnCard key={i} card={c}/>)}
+    </div>
+  );
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { key:'dashboard',   label:'📊', full:'Dashboard' },
+  { key:'buy',         label:'🛒', full:'Acheter' },
+  { key:'portfolio',   label:'💼', full:'Portefeuille' },
+  { key:'projections', label:'🔮', full:'Projections' },
+  { key:'learn',       label:'🎓', full:'Apprendre' },
+];
+
+function App() {
+  const [portfolio, setPortfolio] = useState(loadState);
+  const [tab,       setTab]       = useState('dashboard');
+  const [prices,    setPrices]    = useState({});
+  const [seed,      setSeed]      = useState(Date.now());
+  const seedRef = useRef(seed);
+
+  // Recompute prices whenever seed or positions change
+  useEffect(() => {
+    const computePrices = (s) => {
+      const p = {};
+      portfolio.positions.forEach(pos => { p[pos.id] = getCurrentPrice(pos, s); });
+      setPrices(p);
+    };
+    computePrices(seedRef.current);
+    const id = setInterval(() => {
+      const s = Date.now();
+      seedRef.current = s;
+      setSeed(s);
+      computePrices(s);
+    }, 60000);
+    return () => clearInterval(id);
+  }, [portfolio.positions]);
+
+  // Snapshot history every tick
+  useEffect(() => {
+    if (!portfolio.positions.length) return;
+    const stockVal = portfolio.positions.reduce((s,p) => s + p.shares * (prices[p.id] || p.initialPrice), 0);
+    const total = portfolio.cash + stockVal;
+    if (total <= 0) return;
+    setPortfolio(prev => ({
+      ...prev,
+      history: [...(prev.history || []).slice(-59), { date: Date.now(), value: total }],
+    }));
+  }, [seed]);
+
+  // Persist
+  useEffect(() => { saveState(portfolio); }, [portfolio]);
+
+  function handleBuy(stock, amount) {
+    const shares = amount / stock.price;
+    const pos = {
+      id:            (portfolio.nextId || 1),
+      symbol:        stock.symbol,
+      name:          stock.name,
+      sector:        stock.sector,
+      annualReturn:  stock.annualReturn,
+      volatility:    stock.volatility,
+      initialPrice:  stock.price,
+      shares,
+      amountInvested: amount,
+      purchaseDate:  Date.now(),
+    };
+    setPortfolio(prev => ({
+      ...prev,
+      cash:      prev.cash - amount,
+      positions: [...prev.positions, pos],
+      nextId:    (prev.nextId || 1) + 1,
+    }));
+    setPrices(prev => ({ ...prev, [pos.id]: stock.price }));
+  }
+
+  function handleSell(posId) {
+    const pos   = portfolio.positions.find(p => p.id === posId);
+    if (!pos) return;
+    const value = pos.shares * (prices[posId] || pos.initialPrice);
+    setPortfolio(prev => ({
+      ...prev,
+      cash:      prev.cash + value,
+      positions: prev.positions.filter(p => p.id !== posId),
+    }));
+  }
+
+  function handleReset() {
+    if (!window.confirm('Remettre le portefeuille à zéro avec 10 000 € ?')) return;
+    const fresh = { cash:INITIAL_CAPITAL, positions:[], history:[], nextId:1 };
+    setPortfolio(fresh);
+    setPrices({});
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* HEADER */}
+      <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-2xl">📈</span>
+            <span className="font-extrabold text-gray-900 text-lg hidden sm:inline">InvestSim</span>
+          </div>
+
+          <nav className="flex gap-1 overflow-x-auto">
+            {TABS.map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
+                  ${tab === t.key ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                <span className="sm:hidden">{t.label}</span>
+                <span className="hidden sm:inline">{t.label} {t.full}</span>
+              </button>
+            ))}
+          </nav>
+
+          <button onClick={handleReset}
+            className="flex-shrink-0 text-xs text-gray-400 hover:text-red-500 transition-colors font-medium">
+            Reset
+          </button>
+        </div>
+      </header>
+
+      {/* MAIN */}
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        {tab === 'dashboard'   && <Dashboard   portfolio={portfolio} prices={prices}/>}
+        {tab === 'buy'         && <BuyStock    portfolio={portfolio} onBuy={handleBuy}/>}
+        {tab === 'portfolio'   && <Portfolio   portfolio={portfolio} prices={prices} onSell={handleSell}/>}
+        {tab === 'projections' && <Projections portfolio={portfolio} prices={prices}/>}
+        {tab === 'learn'       && <Learn/>}
+      </main>
+
+      <footer className="text-center text-xs text-gray-400 py-6">
+        Simulation uniquement — aucun conseil financier. Les performances passées ne préjugent pas des performances futures.
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
